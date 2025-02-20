@@ -1,0 +1,249 @@
+/* Import external resources first */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
+:root {
+  font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  color: #333;
+  background-color: #f0f2f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Basic reset to remove default margins and paddings from browser */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 100vw; /* Ensure body takes full viewport width */
+  overflow-x: hidden; /* Prevent horizontal scrollbar if content overflows slightly */
+}
+
+header {
+  background-color: #333;
+}
+
+/* Active timeline button styling */
+.timeline-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Live button styling */
+.date-time-picker button.active {
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+/* Loading indicator */
+.loading-indicator {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+/* Intensity value in ranked list */
+.ranked-list .intensity {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text-dark);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.85em;
+}
+
+/* Control button tooltips */
+.control-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 10px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  pointer-events: none;
+}
+
+.control-button {
+  position: relative;
+}
+
+.control-button:hover .control-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Search highlight */
+.search-highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Disabled buttons */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Time slider improvements */
+.time-slider .slider-handle {
+  transition: left 0.3s ease;
+}
+
+.time-slider .slider-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background-color: white;
+  border-radius: 50%;
+}
+
+/* Better 3D mode indicator */
+.control-button.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Make the about section more readable */
+.about-content p {
+  margin-bottom: 12px;
+}
+
+/* Better map overlay styling */
+.map-legend {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow-light);
+  padding: 12px 15px;
+  font-size: 0.9rem;
+}
+
+/* Make the time range buttons more accessible */
+@media (max-width: 768px) {
+  .timeline-buttons {
+    gap: 8px;
+  }
+
+  .timeline-button {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 5px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Enhance the search input */
+.search-bar input[type="text"] {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+  background-repeat: no-repeat;
+  background-position: 15px center;
+  background-size: 16px;
+  padding-left: 45px;
+}
+
+.search-bar input[type="text"]::placeholder {
+  color: var(--text-light);
+  opacity: 0.7;
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-light: #2a2a2a;
+    --background-dark: #1a1a1a;
+    --text-dark: #f0f0f0;
+    --text-light: #b0b0b0;
+    --border-color: #444;
+    --box-shadow-light: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
+  }
+
+  .electricity-maps-header {
+    background-color: #2a2a2a;
+  }
+
+  .search-bar input[type="text"] {
+    background-color: #333;
+    color: var(--text-dark);
+  }
+
+  .ranked-list {
+    background-color: #2a2a2a;
+  }
+
+  .ranked-list li:hover {
+    background-color: #3a3a3a;
+  }
+
+  .timeline-button {
+    background-color: #333;
+    color: var(--text-light);
+  }
+
+  .control-button {
+    background-color: #333;
+    color: var(--text-light);
+  }
+
+  .map-legend {
+    background-color: rgba(42, 42, 42, 0.9);
+  }
+}
+.datetime-input-container {
+  margin-top: 10px;
+  position: relative;
+}
+
+.datetime-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.live-indicator {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  background: rgba(255, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.debug-panel {
+  margin-top: 15px;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.note {
+  font-style: italic;
+  color: #666;
+  font-size: 12px;
+}

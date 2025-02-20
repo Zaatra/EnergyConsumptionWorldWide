@@ -1,0 +1,215 @@
+/* Make sure any imports come first */
+/* This file doesn't need imports if the font-awesome is already imported in App.css and index.css */
+
+.ranked-list {
+    background-color: #f9f5f5; /* Light background for contrast */
+    border-radius: 8px;       /* Rounded corners for a softer look */
+    overflow: hidden;          /* Ensure rounded corners work with inner elements */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* Subtle shadow for depth */
+    padding: 15px;             /* Padding inside the list container */
+}
+
+.ranked-list ul {
+    list-style: none;          /* Remove default bullet points */
+    padding: 0;               /* Reset default ul padding */
+    margin: 0;                /* Reset default ul margin */
+}
+
+.ranked-list li {
+    max-width: 100%;
+    display: flex;             /* Use Flexbox for easy alignment */
+    align-items: center;
+    justify-content: start;
+    padding: 10px 15px;        /* Padding within each list item */
+    border-bottom: 1px solid #eee; /* Light separator line between items */
+    transition: background-color 0.2s ease-in-out; /* Smooth hover effect */
+}
+
+.ranked-list li:last-child {
+    border-bottom: none;       /* Remove border from the last list item */
+}
+
+.ranked-list li:hover {
+    background-color: #f0f0f0; /* Slightly darker background on hover */
+}
+
+.ranked-list li span:first-child {
+    font-weight: 600;          /* Make rank number bolder */
+    color: #333;              /* Darker color for rank number */
+    margin-right: 15px;        /* Spacing between rank and flag/text */
+    width: 20px;              /* Fixed width for rank numbers to align */
+    text-align: left;         /* Right-align rank numbers within their width */
+    display: inline-block;    /* Ensure width is respected */
+}
+
+.ranked-list .flag {
+    font-size: 1.2em;          /* Slightly larger flag size */
+    margin-right: 10px;        /* Spacing after the flag */
+    display: inline-block;
+    text-align: left;    /* For consistent spacing */
+}
+
+.ranked-list .location {
+    color: #777;              /* Muted color for location */
+    font-style: italic;       /* Italic style to differentiate location */
+    margin-right: auto;        /* Push location to the right end */
+    font-size: 0.9em;          /* Slightly smaller font size for location */
+}
+
+/* Intensity value - This is already defined in App.css but included here if needed */
+.ranked-list .intensity {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--text-dark, #343a40);
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+
+/* Active timeline button styling */
+.timeline-button.active {
+    background-color: var(--primary-color, #007bff);
+    color: white;
+    border-color: var(--primary-color, #007bff);
+}
+
+/* Live button styling */
+.date-time-picker button.active {
+    color: var(--primary-color, #007bff);
+    font-weight: bold;
+}
+
+/* Loading indicator */
+.loading-indicator {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-light, #6c757d);
+    font-style: italic;
+}
+
+/* Control button tooltips */
+.control-tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+}
+
+.control-button {
+    position: relative;
+}
+
+.control-button:hover .control-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Search highlight */
+.search-highlight {
+    background-color: rgba(255, 255, 0, 0.3);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* Disabled buttons */
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Time slider improvements */
+.time-slider .slider-handle {
+    transition: left 0.3s ease;
+}
+
+.time-slider .slider-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background-color: white;
+    border-radius: 50%;
+}
+
+/* Better 3D mode indicator */
+.control-button.active {
+    background-color: var(--primary-color, #007bff);
+    color: white;
+}
+
+/* Make the about section more readable */
+.about-content p {
+    margin-bottom: 12px;
+}
+
+/* Better map overlay styling */
+.map-legend {
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: var(--border-radius, 0.25rem);
+    box-shadow: var(--box-shadow-light, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+    padding: 12px 15px;
+    font-size: 0.9rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .ranked-list {
+        background-color: #2a2a2a;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .ranked-list li {
+        border-bottom-color: #444;
+    }
+
+    .ranked-list li:hover {
+        background-color: #3a3a3a;
+    }
+
+    .ranked-list li span:first-child {
+        color: #f0f0f0;
+    }
+
+    .ranked-list .location {
+        color: #b0b0b0;
+    }
+
+    .ranked-list .intensity {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .search-bar input[type="text"] {
+        background-color: #333;
+        color: #f0f0f0;
+    }
+
+    .timeline-button {
+        background-color: #333;
+        color: #b0b0b0;
+    }
+
+    .control-button {
+        background-color: #333;
+        color: #b0b0b0;
+    }
+
+    .map-legend {
+        background-color: rgba(42, 42, 42, 0.9);
+    }
+}
