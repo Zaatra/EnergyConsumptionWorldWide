@@ -1,10 +1,9 @@
-// File: /src/App.jsx
-
 import { useState, useEffect, useCallback } from "react";
 import MyMap from "./MyMap.jsx";
 import "./App.css";
 import "./list.css";
 import Header from "./header.jsx";
+import { useElectricityData } from './fetchAndSaveData';
 
 // Helper function to create a unique ID
 const createUniqueId = (prefix, item) => {
@@ -180,7 +179,6 @@ const useHistoricalData = () => {
           const row = parseCSVLine(line, headers);
           if (row) {
             processed.push(row);
-            // Use full date-time (hour and minute) for comparison instead of only date part
             const dateStr = formatDateForComparison(row.date);
             uniqueDates.add(dateStr);
             if (row.date < earliest) earliest = row.date;
@@ -213,6 +211,8 @@ const useHistoricalData = () => {
 };
 
 function App() {
+  const { data: liveData, error: liveError, isLoading: liveLoading } = useElectricityData();
+  
   const {
     historicalData,
     isLoading,
@@ -236,31 +236,50 @@ function App() {
   const [sortDirection, setSortDirection] = useState("desc"); // 'desc' or 'asc'
 
   // Filtering logic
-  useEffect(() => {
-    let filtered = historicalData;
-    
-    // First filter by search query if exists
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.Country?.toLowerCase().includes(q) ||
-          item["Zone Name"]?.toLowerCase().includes(q) ||
-          item.Region?.toLowerCase().includes(q)
-      );
-    }
-    
-    // Then filter by selected time
-    if (!isLiveMode && selectedDate) {
-      filtered = filtered.filter(item => {
-        // Allow for some time difference (e.g., within 30 minutes)
-        const timeDiff = Math.abs(item.date.getTime() - selectedDate.getTime());
-        return timeDiff <= 30 * 60 * 1000; // 30 minutes in milliseconds
-      });
-    }
-    
-    setFilteredData(filtered);
-  }, [searchQuery, historicalData, selectedDate, isLiveMode]);
+// In your App.jsx, update the useEffect for filtering data:
+
+useEffect(() => {
+  let filtered = historicalData;
+  
+  // If live mode is active and live data is available, inject it.
+  if (isLiveMode && liveData) {
+    const liveDataFormatted = {
+      'Datetime (UTC)': liveData.datetime,
+      Country: 'Israel',
+      'Zone Name': 'Israel',
+      'Zone Id': liveData.zone,
+      'Carbon Intensity gCO₂eq/kWh (direct)': Number(liveData.powerData.powerProductionBreakdown.coal || 0),
+      'Carbon Intensity gCO₂eq/kWh (LCA)': Number(liveData.powerData.powerConsumptionBreakdown.coal || 0),
+      'Low Carbon Percentage': Number(liveData.powerData.fossilFreePercentage || 0),
+      'Renewable Percentage': Number(liveData.powerData.renewablePercentage || 0),
+      date: new Date(liveData.datetime)
+    };
+    filtered = [liveDataFormatted, ...filtered];
+  }
+  
+  // Additional filtering based on search query or selected date, etc.
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.filter(
+      (item) =>
+        item.Country?.toLowerCase().includes(q) ||
+        item["Zone Name"]?.toLowerCase().includes(q) ||
+        item.Region?.toLowerCase().includes(q)
+    );
+  }
+  
+  if (!isLiveMode && selectedDate) {
+    filtered = filtered.filter(item => {
+      if (!item.date) return false;
+      const itemDate = new Date(item.date);
+      const targetDate = new Date(selectedDate);
+      return itemDate.toDateString() === targetDate.toDateString();
+    });
+  }
+  
+  setFilteredData(filtered);
+}, [searchQuery, historicalData, selectedDate, isLiveMode, liveData]);
+
 
   // Date/time input logic
   useEffect(() => {
@@ -289,7 +308,6 @@ function App() {
         }
       }
       
-      // Use the closest date to update selectedDate
       setSelectedDate(closestDate);
       
       const diffInMinutes = Math.floor(smallestDiff / (1000 * 60));
@@ -315,9 +333,15 @@ function App() {
 
   const goToLive = useCallback(() => {
     setIsLiveMode(true);
-    setSelectedDate(new Date());
+    if (liveData && liveData.datetime) {
+      // Use the live record's datetime so that it passes the date filter in MyMap.
+      setSelectedDate(new Date(liveData.datetime));
+    } else {
+      setSelectedDate(new Date());
+    }
     setClosestAvailableDate(null);
-  }, []);
+  }, [liveData]);
+  
 
   const goToNextDay = useCallback(() => {
     if (availableDates.length === 0) return;
@@ -379,9 +403,7 @@ function App() {
   // Sorting logic
   const handleSortClick = useCallback(
     (field) => {
-      // field: 'production' or 'consumption'
       if (sortField === field) {
-        // Toggle direction
         setSortDirection(sortDirection === "desc" ? "asc" : "desc");
       } else {
         setSortField(field);
@@ -410,38 +432,42 @@ function App() {
 
   // Renders a table with sortable columns for Production & Consumption
   const renderRankedList = () => {
-    if (isLoading) {
+    if (isLoading || (isLiveMode && liveLoading)) {
       return <div className="loading-indicator">Loading data...</div>;
     }
-
+  
     // De-duplicate by (Country, Zone Name)
     const uniqueEntries = new Map();
     filteredData.forEach((item) => {
       const key = `${item.Country}-${item["Zone Name"]}`;
       if (!uniqueEntries.has(key)) {
-        uniqueEntries.set(key, item);
+        uniqueEntries.set(key, {
+          ...item,
+          // Ensure numbers are properly formatted
+          directIntensity: Number(item.directIntensity || 0),
+          lcaIntensity: Number(item.lcaIntensity || 0),
+          lowCarbonPercentage: Number(item.lowCarbonPercentage || 0),
+          renewablePercentage: Number(item.renewablePercentage || 0)
+        });
       }
     });
-
+  
     let sortedData = [...uniqueEntries.values()];
-
+  
     // Sort by chosen field
     if (sortField === "production") {
-      // directIntensity
       sortedData.sort((a, b) => b.directIntensity - a.directIntensity);
     } else if (sortField === "consumption") {
-      // lcaIntensity
       sortedData.sort((a, b) => b.lcaIntensity - a.lcaIntensity);
     } else {
-      // default sort is directIntensity desc
       sortedData.sort((a, b) => b.directIntensity - a.directIntensity);
     }
-
+  
     // Reverse if ascending
     if (sortDirection === "asc") {
       sortedData.reverse();
     }
-
+  
     return (
       <div className="ranked-list">
         <table>
@@ -462,25 +488,24 @@ function App() {
           <tbody>
             {sortedData.slice(0, 20).map((item, idx) => {
               const uniqueId = createUniqueId("location", item);
-              // Decide how to display "Country / Zone"
               let zoneLabel = item.Country;
               if (item["Zone Name"] && item["Zone Name"] !== item.Country) {
                 zoneLabel += ` – ${item["Zone Name"]}`;
               }
-
-              // Which intensity to display in the last column?
-              const productionValue = item.directIntensity?.toFixed(1) ?? "N/A";
-              const consumptionValue = item.lcaIntensity?.toFixed(1) ?? "N/A";
-
+  
               return (
                 <tr key={uniqueId}>
                   <td>{idx + 1}</td>
                   <td>{zoneLabel}</td>
                   <td>
-                    <span className="intensity">{productionValue}</span>
+                    <span className="intensity">
+                      {Number(item.directIntensity).toFixed(1)}
+                    </span>
                   </td>
                   <td>
-                    <span className="intensity">{consumptionValue}</span>
+                    <span className="intensity">
+                      {Number(item.lcaIntensity).toFixed(1)}
+                    </span>
                   </td>
                 </tr>
               );
@@ -490,6 +515,7 @@ function App() {
       </div>
     );
   };
+  
 
   // Provide map data
   const mapDataWithDebug = () => {
@@ -523,9 +549,9 @@ function App() {
     liveIndicator = <div className="live-indicator">LIVE MODE</div>;
   }
 
-  // Possibly show error overlay
+  // Error displays
   let errorOverlay = null;
-  if (loadError && filteredData.length === 0) {
+  if ((loadError || (isLiveMode && liveError)) && filteredData.length === 0) {
     errorOverlay = (
       <div className="map-error-overlay">
         <div className="map-error-message">
@@ -538,6 +564,12 @@ function App() {
 
   let errorNotice = loadError ? (
     <div className="data-error-notice">{loadError}</div>
+  ) : null;
+
+  let liveDataError = isLiveMode && liveError ? (
+    <div className="data-error-notice">
+      Error fetching live data: {liveError}
+    </div>
   ) : null;
 
   let debugInfo = null;
@@ -575,6 +607,7 @@ function App() {
               produce it
             </p>
             {errorNotice}
+            {liveDataError}
           </div>
 
           <div className="search-bar">
@@ -586,7 +619,6 @@ function App() {
             />
           </div>
 
-          {/* Render the table with Production & Consumption columns */}
           {renderRankedList()}
 
           <details className="about-section">
@@ -635,7 +667,7 @@ function App() {
                 min={formatDateForComparison(dataDateRange.start)}
                 max={formatDateForComparison(dataDateRange.end)}
                 className="datetime-input"
-                disabled={isLoading}
+                disabled={isLoading || (isLiveMode && liveLoading)}
               />
               {liveIndicator}
             </div>

@@ -1,3 +1,4 @@
+// File: /src/MyMap.jsx
 import PropTypes from 'prop-types';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import MapGL, { Layer, Source, NavigationControl, Popup } from 'react-map-gl/maplibre';
@@ -6,7 +7,10 @@ import './MyMap.css';
 import { zoneIdToGeojsonId } from './zoneMapping';
 
 const MAPTILER_ACCESS_TOKEN = import.meta.env.VITE_MAPTILER_ACCESS_TOKEN;
-const MAP_STYLE_URL = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_ACCESS_TOKEN}`;
+// Define two map style URLs for dark and light themes
+const darkMapStyle = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_ACCESS_TOKEN}`;
+const lightMapStyle = `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${MAPTILER_ACCESS_TOKEN}`;
+// Environment variable for CSV date field key
 const Date_TIME_UTC = import.meta.env.VITE_DATE_TIME_UTC;
 
 // Adjusted so that CSV dates are parsed as local time
@@ -48,6 +52,7 @@ const MyMap = ({
   viewMode,
   isLiveMode,
   mapData,
+  isLightMode, // New prop for theme
 }) => {
   const [currentTime, setCurrentTime] = useState('');
   const [hoveredCountry, setHoveredCountry] = useState(null);
@@ -63,36 +68,39 @@ const MyMap = ({
     pitch: 0,
   });
 
+  // Choose map style based on theme
+  const mapStyleURL = isLightMode ? darkMapStyle : lightMapStyle;
+
+
   useEffect(() => {
     if (!mapData || !selectedDate) {
       setProcessedData(null);
       return;
     }
-  
-    const targetDateUTC = formatDateForComparison(selectedDate); // Now in UTC
-    if (!targetDateUTC) {
-      setProcessedData(null);
-      return;
-    }
-  
+
+    const targetDateUTC = formatDateForComparison(selectedDate); // e.g., "2025-02-21"
     const processed = {};
+
     mapData.forEach((entry) => {
-      const entryDateUTC = formatDateForComparison(entry[Date_TIME_UTC]); // Dataset already in UTC
-  
+      // For live mode, always include Israel's live record
+      if (isLiveMode && entry['Zone Id'] === 'IL') {
+        const zoneId = entry['Zone Id'];
+        processed[zoneId] = entry;
+        return;
+      }
+      const entryDateUTC = formatDateForComparison(entry[import.meta.env.VITE_DATE_TIME_UTC]);
       if (entryDateUTC === targetDateUTC) {
         const zoneId = entry['Zone Id'];
         if (
           !processed[zoneId] ||
-          new Date(entry[Date_TIME_UTC]) > new Date(processed[zoneId][Date_TIME_UTC])
+          new Date(entry[import.meta.env.VITE_DATE_TIME_UTC]) > new Date(processed[zoneId][import.meta.env.VITE_DATE_TIME_UTC])
         ) {
           processed[zoneId] = entry;
         }
       }
     });
-  
     setProcessedData(processed);
-  }, [mapData, selectedDate]);
-  
+  }, [mapData, selectedDate, isLiveMode]);
 
   const formatUTCDateTime = useCallback((date) => {
     try {
@@ -142,20 +150,19 @@ const MyMap = ({
     let record = null;
     let lowCarbon = null;
     let renewable = null;
+
     if (csvZoneId && zoneData[csvZoneId]) {
       record = zoneData[csvZoneId];
-      console.log('Record for US:', record); // Add this line
       if (currentViewMode === 'production') {
-        intensity = record.directIntensity;
-        lowCarbon = record.lowCarbonPercentage;  // Here it's set from record.lowCarbonPercentage
-        renewable = record.renewablePercentage;   // This one works
-        console.log('Production values:', { intensity, lowCarbon, renewable }); // Add this line
+        intensity = Number(record.directIntensity || 0);
+        lowCarbon = Number(record.lowCarbonPercentage || 0);
+        renewable = Number(record.renewablePercentage || 0);
       } else if (currentViewMode === 'lca' || currentViewMode === 'consumption') {
-        intensity = record.lcaIntensity;
+        intensity = Number(record.lcaIntensity || 0);
       }
     }
-  
-    const result = {
+
+    return {
       ...feature,
       id: geojsonId,
       properties: {
@@ -168,10 +175,6 @@ const MyMap = ({
         renewable,
       },
     };
-    if (feature.properties.name === 'United States of America') {
-      console.log('Final US feature:', result); // Add this line
-    }
-    return result;
   }, [getColorForIntensity]);
 
   useEffect(() => {
@@ -278,14 +281,13 @@ const MyMap = ({
     return `${value.toFixed(2)}%`;
   };
 
-  
   return (
     <div className="map-wrapper">
       <MapGL
         {...viewState}
         onMove={handleMove}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={MAP_STYLE_URL}
+        mapStyle={mapStyleURL}
         interactiveLayerIds={['countries']}
         onClick={handleCountryClick}
         onMouseMove={onHover}
@@ -311,17 +313,27 @@ const MyMap = ({
               <div className="popup-data">
                 <p>
                   <strong>Carbon Intensity ({viewMode}):</strong>{' '}
-                  {getIntensityText(popupInfo.intensity)}
+                  {typeof popupInfo.intensity === 'number'
+                    ? popupInfo.intensity.toFixed(2) + ' gCO₂eq/kWh'
+                    : 'No data available'}
                 </p>
                 {viewMode === 'production' && popupInfo.record && (
-  <>
-    <p><strong>Low Carbon:</strong> {popupInfo.lowCarbon?.toFixed(2)}%</p>
-    <p><strong>Renewable:</strong> {popupInfo.renewable?.toFixed(2)}%</p>
-  </>
-)}
-
+                  <>
+                    <p>
+                      <strong>Low Carbon:</strong>{' '}
+                      {(Number(popupInfo.lowCarbon) || 0).toFixed(2)}%
+                    </p>
+                    <p>
+                      <strong>Renewable:</strong>{' '}
+                      {(Number(popupInfo.renewable) || 0).toFixed(2)}%
+                    </p>
+                  </>
+                )}
                 <p><strong>Mode:</strong> {isLiveMode ? 'Live' : 'Historical'}</p>
-                <p><strong>Date:</strong> {selectedDate.toLocaleDateString()}</p>
+                <p>
+                  <strong>Date:</strong>{' '}
+                  {selectedDate.toLocaleDateString()}
+                </p>
               </div>
               <div className="popup-footer">
                 <p>UTC Time: {currentTime}</p>
@@ -374,12 +386,9 @@ const MyMap = ({
             <h3>No Data Available</h3>
             <p>No data is available for the selected date: {formatDateForComparison(selectedDate)}</p>
             <p>
-              Please select a date between
-              {' '}
-              {formatDateForComparison(new Date('2023-12-31'))}
-              {' '}
-              and
-              {' '}
+              Please select a date between{' '}
+              {formatDateForComparison(new Date('2023-12-31'))}{' '}
+              and{' '}
               {formatDateForComparison(new Date('2024-12-31'))}
             </p>
           </div>
@@ -393,26 +402,29 @@ MyMap.propTypes = {
   selectedDate: PropTypes.instanceOf(Date).isRequired,
   viewMode: PropTypes.oneOf(['production', 'lca']).isRequired,
   isLiveMode: PropTypes.bool.isRequired,
-  mapData: PropTypes.arrayOf(PropTypes.shape({
-    Date_TIME_UTC: PropTypes.string.isRequired,
-    'Zone Id': PropTypes.string.isRequired,
-    'Carbon Intensity gCO₂eq/kWh (direct)': PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
-    'Carbon Intensity gCO₂eq/kWh (LCA)': PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
-    'Low Carbon Percentage': PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
-    'Renewable Percentage': PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
-  })).isRequired,
+  mapData: PropTypes.arrayOf(
+    PropTypes.shape({
+      Date_TIME_UTC: PropTypes.string.isRequired,
+      'Zone Id': PropTypes.string.isRequired,
+      'Carbon Intensity gCO₂eq/kWh (direct)': PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.number,
+      ]),
+      'Carbon Intensity gCO₂eq/kWh (LCA)': PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.number,
+      ]),
+      'Low Carbon Percentage': PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.number,
+      ]),
+      'Renewable Percentage': PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.number,
+      ]),
+    })
+  ).isRequired,
+  isLightMode: PropTypes.bool.isRequired,
 };
 
 export default MyMap;

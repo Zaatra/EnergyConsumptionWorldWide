@@ -1,50 +1,52 @@
+/* File: /src/list.css */
 /* Global reset */
 * {
-    box-sizing: border-box;
-  }
-  
-  /* The ranked-list container */
-  .ranked-list {
-    background-color: #f9f5f5; /* Light background for contrast */
-    border-radius: 8px;       /* Rounded corners for a softer look */
-    overflow: hidden;         /* Ensure rounded corners with inner elements */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* Subtle shadow for depth */
-    padding: 15px;            /* Padding inside the container */
-  }
-  
-  /* Table styles */
-  .ranked-list table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .ranked-list thead tr {
-    background-color: #f0f0f0;
-  }
-  
-  .ranked-list th,
-  .ranked-list td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .ranked-list th {
-    cursor: pointer; /* Indicate clickable for sorting */
-  }
-  
-  .ranked-list tbody tr:hover {
-    background-color: #f0f0f0; /* Slight hover effect */
-  }
-  
-  /* Production/Consumption intensity cell */
-  .ranked-list .intensity {
-    font-weight: 600;
-    color: #343a40; /* var(--text-dark) fallback */
-    background: rgba(0, 0, 0, 0.05);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.85em;
-    margin-left: auto;
-  }
-  
+  box-sizing: border-box;
+}
+
+/* The ranked-list container */
+.ranked-list {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  padding: 15px;
+}
+
+/* Table styles */
+.ranked-list table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ranked-list thead tr {
+  background-color: var(--background-dark);
+}
+
+.ranked-list th,
+.ranked-list td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-dark);
+}
+
+.ranked-list th {
+  cursor: pointer;
+  color: var(--text-light);
+}
+
+.ranked-list tbody tr:hover {
+  background-color: var(--background-dark);
+}
+
+/* Production/Consumption intensity cell */
+.ranked-list .intensity {
+  font-weight: 600;
+  color: var(--text-dark);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  margin-left: auto;
+}

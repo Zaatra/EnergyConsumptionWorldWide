@@ -1,37 +1,45 @@
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 
 /**
- * Header component with navigation and view controls.
- * Extra buttons (Country/Zone toggles, info-icon, and API Access) have been removed.
+ * Header component with a logo, a single navigation link ("Interesting Charts"),
+ * view controls, and a dark/light mode toggle.
  */
-function Header({ onProductionClick, onConsumptionClick, viewMode }) {
+function Header({ onProductionClick, onConsumptionClick, viewMode, onThemeToggle, isLightMode }) {
   return (
     <header className="electricity-maps-header">
-      <div className="header-left">
+      <div className="header-content">
         <div className="logo">ELECTRICITY MAPS</div>
         <nav className="header-nav">
           <ul>
-            <li><a href="#faq">FAQ</a></li>
-            <li><a href="#methodology">Methodology</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#community">Community</a></li>
-            <li><a href="#blog">Blog</a></li>
+            <li>
+              <Link to="/">Interesting Charts</Link> {/* Link to home page */}
+            </li>
+            <li>
+              <Link to="/about">About</Link> {/* Link to About page */}
+            </li>
           </ul>
         </nav>
-      </div>
-      <div className="header-right">
         <div className="toggle-group">
-          <button 
+          <button
             className={`toggle-button ${viewMode === 'production' ? 'active' : ''}`}
             onClick={onProductionClick}
           >
             Production
           </button>
-          <button 
+          <button
             className={`toggle-button ${viewMode === 'consumption' ? 'active' : ''}`}
             onClick={onConsumptionClick}
           >
             Consumption
+          </button>
+          {/* Theme toggle button */}
+          <button
+            className="toggle-button"
+            onClick={onThemeToggle}
+            title={isLightMode ? "Switch to Dark Mode" : "Switch to Light Mode"}
+          >
+            {isLightMode ? <i className="fas fa-moon"></i> : <i className="fas fa-sun"></i>}
           </button>
         </div>
       </div>
@@ -43,10 +51,12 @@ Header.propTypes = {
   onProductionClick: PropTypes.func.isRequired,
   onConsumptionClick: PropTypes.func.isRequired,
   viewMode: PropTypes.oneOf(['production', 'consumption']),
+  onThemeToggle: PropTypes.func.isRequired,
+  isLightMode: PropTypes.bool.isRequired,
 };
 
 Header.defaultProps = {
-  viewMode: 'production'
+  viewMode: 'production',
 };
 
 export default Header;

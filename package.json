@@ -12,18 +12,18 @@
   "dependencies": {
     "@react-map/world": "^1.0.13",
     "@types/mapbox-gl": "^3.4.1",
-    "country-flag-icons": "^1.5.18",
-    "country-to-iso": "^1.6.0",
     "debounce": "^2.2.0",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.0",
     "lodash": "^4.17.21",
     "maplibre-gl": "^5.1.0",
     "papaparse": "^5.5.2",
+    "path": "^0.12.7",
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-map-gl": "^8.0.1",
+    "react-router-dom": "^7.2.0",
     "react-toastify": "^11.0.3"
   },
   "devDependencies": {
