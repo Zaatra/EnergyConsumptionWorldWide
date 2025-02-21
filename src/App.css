@@ -1,5 +1,10 @@
 /* Import external resources first */
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css');
+
+/* Global reset */
+* {
+  box-sizing: border-box;
+}
 
 :root {
   --primary-color: #007bff;
@@ -11,30 +16,26 @@
   --border-color: #dee2e6;
   --box-shadow-light: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   --border-radius: 0.25rem;
+  --header-height: 60px;
 }
 
 body {
   font-family: "Inter", sans-serif;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
   background-color: var(--background-dark);
   color: var(--text-dark);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   min-height: 100vh;
   transition: background-color 0.3s, color 0.3s;
+  /* Remove display: flex from body to prevent scrolling issues */
 }
 
 .electricity-maps-app {
-  margin: 0 auto;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh; /* Use viewport height */
   width: 100%;
-  min-width: min(100vw);
-  border-radius: var(--border-radius);
-  overflow: hidden;
-  box-shadow: var(--box-shadow-light);
   background-color: var(--background-light);
 }
 
@@ -46,6 +47,8 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+  height: var(--header-height);
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .header-left,
@@ -116,26 +119,24 @@ body {
 /* App Body Layout */
 .app-body {
   display: flex;
-  width: 100%;
-  height: calc(100vh - 60px);
-  position: relative;
-  overflow: hidden;
+  flex: 1; /* Allow body to take remaining space */
+  height: calc(100vh - var(--header-height));
+  overflow: hidden; /* Prevent body overflow */
 }
 
 .left-sidebar {
-  width: 320px;
+  width: 450px;
   background-color: #fff;
-  padding: 25px;
   border-right: 1px solid var(--border-color);
-  overflow-y: auto;
   height: 100%;
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding: 25px;
 }
 
 .main {
-  flex-grow: 1;
-  height: 100%;
-  display: flex;
+  flex: 1;
   position: relative;
+  height: 100%;
 }
 
 .map-container {
@@ -155,7 +156,7 @@ body {
   flex-direction: column;
   align-items: center;
   height: 100%;
-}
+  flex-shrink: 0;} /* Prevent right sidebar from shrinking */
 
 /* Left Sidebar Content Styles */
 .sidebar-header h1 {
@@ -206,6 +207,13 @@ body {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+.date-time-picker span {
+  font-size: 1rem;
+  color: var(--text-dark);
+  margin: 0 15px;
+  font-weight: 500;
 }
 
 .ranked-list li {
@@ -334,6 +342,20 @@ body {
   margin-bottom: 15px;
 }
 
+.map-error-message button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .date-time-picker button {
   background: none;
   border: none;
@@ -347,21 +369,9 @@ body {
   color: var(--primary-color);
 }
 
-.date-time-picker span {
-  font-size: 1rem;
-  color: var(--text-dark);
-  margin: 0 15px;
-  font-weight: 500;
-}
-
 .date-time-picker button.active {
   color: var(--primary-color);
   font-weight: bold;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Time Slider */
@@ -444,6 +454,7 @@ button:disabled {
   font-size: 12px;
 }
 
+/* map-error-overlay is local to this container if needed */
 .map-error-overlay {
   position: absolute;
   top: 0;
@@ -466,41 +477,4 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-}
-
-.map-error-message button {
-  padding: 8px 16px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.no-data-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 900;
-}
-
-.no-data-message {
-  background-color: white;
-  padding: 12px 20px;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-weight: 500;
-}
-
-/* Loading Indicator */
-.loading-indicator {
-  padding: 20px;
-  text-align: center;
-  color: var(--text-light);
 }

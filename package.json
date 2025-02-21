@@ -13,6 +13,7 @@
     "@react-map/world": "^1.0.13",
     "@types/mapbox-gl": "^3.4.1",
     "country-flag-icons": "^1.5.18",
+    "country-to-iso": "^1.6.0",
     "debounce": "^2.2.0",
     "dotenv": "^16.4.7",
     "esbuild": "^0.25.0",

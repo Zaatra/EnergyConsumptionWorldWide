@@ -1,277 +1,315 @@
+// File: /src/App.jsx
+
 import { useState, useEffect, useCallback } from "react";
 import MyMap from "./MyMap.jsx";
 import "./App.css";
 import "./list.css";
 import Header from "./header.jsx";
-import { debounce } from 'lodash';
-import { zoneIdToGeojsonId } from './zoneMapping';
-import getUnicodeFlagIcon from 'country-flag-icons/unicode';
 
+// Helper function to create a unique ID
 const createUniqueId = (prefix, item) => {
-  return `${prefix}-${item.Country || ''}-${item['Zone Name'] || ''}-${item.date?.getTime() || Date.now()}`;
+  let dateVal;
+  if (item.date && typeof item.date.getTime === "function") {
+    dateVal = item.date.getTime();
+  } else {
+    dateVal = Date.now();
+  }
+  return `${prefix}-${item.Country || ""}-${item["Zone Name"] || ""}-${dateVal}`;
 };
 
-const CSV_DATA_PATH = '/electricity_data.csv';
+const CSV_DATA_PATH = import.meta.env.VITE_CSV_DATA_PATH;
 
+// Parse date in slash format (e.g., "01/01/2023 12:00")
+const parseSlashFormat = (dateTimeStr) => {
+  const parts = dateTimeStr.split(" ");
+  if (parts.length < 2) return null;
+
+  const dateParts = parts[0].split("/");
+  if (dateParts.length !== 3) return null;
+
+  const timeParts = parts[1].split(":");
+  const day = dateParts[0].padStart(2, "0");
+  const month = dateParts[1].padStart(2, "0");
+  const year = dateParts[2];
+  const hour = timeParts[0].padStart(2, "0");
+  let minute = "00";
+  if (timeParts[1]) {
+    minute = timeParts[1].padStart(2, "0");
+  }
+
+  return `${year}-${month}-${day}T${hour}:${minute}:00`;
+};
+
+// Parse date from CSV string
 const parseDateFromCSV = (dateTimeStr) => {
   if (!dateTimeStr) return null;
-  
   try {
-    if (dateTimeStr.includes('/')) {
-      const parts = dateTimeStr.split(' ');
-      if (parts.length >= 2) {
-        const dateParts = parts[0].split('/');
-        const timeParts = parts[1].split(':');
-        
-        if (dateParts.length === 3) {
-          const day = dateParts[0].padStart(2, '0');
-          const month = dateParts[1].padStart(2, '0');
-          const year = dateParts[2];
-          const hour = timeParts[0].padStart(2, '0');
-          const minute = timeParts[1] ? timeParts[1].padStart(2, '0') : '00';
-          
-          const dateStr = `${year}-${month}-${day}T${hour}:${minute}:00`;
-          return new Date(dateStr);
-        }
+    if (dateTimeStr.includes("/")) {
+      const formattedDate = parseSlashFormat(dateTimeStr);
+      if (formattedDate) {
+        return new Date(formattedDate);
+      } else {
+        return new Date(dateTimeStr);
       }
+    } else {
+      return new Date(dateTimeStr);
     }
-    
-    return new Date(dateTimeStr);
   } catch (error) {
+    console.info("Failed to parse date:", error);
     return null;
   }
 };
 
-const formatDateForInput = (date) => {
-  if (!date) return '';
-  return date.toISOString().slice(0, 16);
+// Format date for datetime-local input using local time,
+// preserving the hour and minute components.
+const formatDateForComparison = (dateInput) => {
+  try {
+    if (!dateInput) return null;
+    let date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return null;
+  }
 };
 
-function App() {
-  const DATA_START_DATE = new Date('2023-01-01T00:00:00');
-  const DATA_END_DATE = new Date('2024-12-31T23:59:59');
-  
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isLiveMode, setIsLiveMode] = useState(true);
-  const [viewMode, setViewMode] = useState('production');
-  const [zoneViewEnabled, setZoneViewEnabled] = useState(false);
+// Parse a single CSV line into a row object
+const parseCSVLine = (line, headers) => {
+  const trimmedLine = line.trim();
+  if (!trimmedLine) return null;
+
+  const values = trimmedLine
+    .split(",")
+    .map((val) => val.trim().replace(/(?:^")|(?:"$)/g, ""));
+
+  if (values.length !== headers.length) return null;
+
+  const row = {};
+  headers.forEach((header, index) => {
+    row[header] = values[index];
+  });
+
+  const date = parseDateFromCSV(row["Datetime (UTC)"]);
+  if (!date || isNaN(date.getTime())) return null;
+
+  // Convert percentages with proper error handling
+  const lowCarbon = parseFloat(row["Low Carbon Percentage"]);
+  const renewable = parseFloat(row["Renewable Percentage"]);
+
+  return {
+    ...row,
+    date,
+    directIntensity: parseFloat(row["Carbon Intensity gCO₂eq/kWh (direct)"]) || 0,
+    lcaIntensity: parseFloat(row["Carbon Intensity gCO₂eq/kWh (LCA)"]) || 0,
+    lowCarbonPercentage: !isNaN(lowCarbon) ? Number(lowCarbon.toFixed(2)) : 0,
+    renewablePercentage: !isNaN(renewable) ? Number(renewable.toFixed(2)) : 0
+  };
+};
+
+// Custom hook to load historical data
+const useHistoricalData = () => {
   const [historicalData, setHistoricalData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [loadError, setLoadError] = useState(null);
   const [availableDates, setAvailableDates] = useState([]);
   const [dataDateRange, setDataDateRange] = useState({
-    start: DATA_START_DATE,
-    end: DATA_END_DATE
+    start: new Date("2023-01-01T00:00:00"),
+    end: new Date("2024-12-31T23:59:59"),
   });
-  const [dateTimeInputValue, setDateTimeInputValue] = useState('');
-  const [closestAvailableDate, setClosestAvailableDate] = useState(null);
-  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
-    const loadHistoricalData = async () => {
+    const loadData = async () => {
+      setIsLoading(true);
+      setLoadError(null);
       try {
-        setIsLoading(true);
-        setLoadError(null);
-        
         const response = await fetch(CSV_DATA_PATH);
-        
         if (!response.ok) {
-          throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
+          throw new Error(
+            `Failed to load CSV: ${response.status} ${response.statusText}`
+          );
         }
-        
         const csvText = await response.text();
-        
-        if (csvText.trim().startsWith('<!doctype html>') || 
-            csvText.trim().startsWith('<html')) {
-          throw new Error('Received HTML instead of CSV data');
+        const trimmedText = csvText.trim();
+        if (
+          trimmedText.startsWith("<!doctype html>") ||
+          trimmedText.startsWith("<html")
+        ) {
+          throw new Error("Received HTML instead of CSV data");
         }
-        
-        if (csvText.trim().length === 0) {
-          throw new Error('CSV file is empty');
+        if (trimmedText.length === 0) {
+          throw new Error("CSV file is empty");
         }
 
-        const lines = csvText.trim().split('\n');
+        const lines = trimmedText.split("\n");
         if (lines.length <= 1) {
-          throw new Error('CSV file has insufficient data');
+          throw new Error("CSV file has insufficient data");
         }
-        
-        const headers = lines[0].split(',').map(h => h.trim());
-        
+        const headerLine = lines[0].replace(/^\uFEFF/, "");
+        const headers = headerLine.split(",").map((h) => h.trim());
+
         const requiredHeaders = [
-          'Datetime (UTC)', 'Country', 'Zone Name', 
-          'Carbon Intensity gCO₂eq/kWh (direct)', 
-          'Carbon Intensity gCO₂eq/kWh (LCA)'
+          "Datetime (UTC)",
+          "Country",
+          "Zone Name",
+          "Carbon Intensity gCO₂eq/kWh (direct)",
+          "Low Carbon Percentage",
+          "Renewable Percentage",
+          "Carbon Intensity gCO₂eq/kWh (LCA)",
         ];
-        
-        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+        const missingHeaders = requiredHeaders.filter(
+          (h) => !headers.includes(h)
+        );
         if (missingHeaders.length > 0) {
-          throw new Error(`CSV missing required headers: ${missingHeaders.join(', ')}`);
+          throw new Error(
+            `CSV missing required headers: ${missingHeaders.join(", ")}`
+          );
         }
 
-        const chunkSize = 10000;
-        const totalChunks = Math.ceil((lines.length - 1) / chunkSize);
         const processed = [];
         const uniqueDates = new Set();
-        let earliestDate = new Date('9999-12-31');
-        let latestDate = new Date('1970-01-01');
-        
-        for (let chunk = 0; chunk < totalChunks; chunk++) {
-          const startIdx = chunk * chunkSize + 1;
-          const endIdx = Math.min(startIdx + chunkSize, lines.length);
-          
-          for (let i = startIdx; i < endIdx; i++) {
-            if (!lines[i].trim()) continue;
-            
-            const values = lines[i].split(',');
-            if (values.length !== headers.length) {
-              continue;
-            }
-            
-            const row = {};
-            headers.forEach((header, index) => {
-              row[header] = values[index]?.trim();
-            });
-            
-            const date = parseDateFromCSV(row['Datetime (UTC)']);
-            if (!date || isNaN(date.getTime())) {
-              continue;
-            }
-            
-            if (date < earliestDate) earliestDate = new Date(date);
-            if (date > latestDate) latestDate = new Date(date);
-            
-            uniqueDates.add(date.toISOString().split('T')[0]);
-            
-            processed.push({
-              ...row,
-              date,
-              directIntensity: parseFloat(row['Carbon Intensity gCO₂eq/kWh (direct)']),
-              lcaIntensity: parseFloat(row['Carbon Intensity gCO₂eq/kWh (LCA)']),
-              lowCarbonPercentage: parseFloat(row['Low Carbon Percentage'] || '0'),
-              renewablePercentage: parseFloat(row['Renewable Percentage'] || '0')
-            });
-          }
-          
-          if (chunk % 5 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
+        let earliest = new Date("9999-12-31");
+        let latest = new Date("1970-01-01");
+
+        for (const line of lines.slice(1)) {
+          const row = parseCSVLine(line, headers);
+          if (row) {
+            processed.push(row);
+            // Use full date-time (hour and minute) for comparison instead of only date part
+            const dateStr = formatDateForComparison(row.date);
+            uniqueDates.add(dateStr);
+            if (row.date < earliest) earliest = row.date;
+            if (row.date > latest) latest = row.date;
           }
         }
-        
+
         if (processed.length === 0) {
-          throw new Error('No valid data rows found in CSV');
+          throw new Error("No valid data rows found in CSV");
         }
-        
+
         const sortedDates = Array.from(uniqueDates)
           .sort()
-          .map(dateStr => new Date(dateStr));
-        
+          .map((dateStr) => new Date(dateStr));
         setAvailableDates(sortedDates);
-        
-        const dateRange = {
-          start: earliestDate,
-          end: latestDate
-        };
-        
-        setDataDateRange(dateRange);
+        setDataDateRange({ start: earliest, end: latest });
         setHistoricalData(processed);
-        setFilteredData(processed);
-        
-      } catch (error) {
-        console.error("Failed to load data:", error);
-        setLoadError(`Error: ${error.message}`);
+      } catch (err) {
+        console.info("Failed to load data:", err);
+        setLoadError(`Error: ${err.message}`);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    loadHistoricalData();
+
+    loadData();
   }, []);
 
+  return { historicalData, isLoading, loadError, availableDates, dataDateRange };
+};
+
+function App() {
+  const {
+    historicalData,
+    isLoading,
+    loadError,
+    availableDates,
+    dataDateRange,
+  } = useHistoricalData();
+
+  // State
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isLiveMode, setIsLiveMode] = useState(true);
+  const [viewMode, setViewMode] = useState("production");
+  const [zoneViewEnabled] = useState(false);
+  const [filteredData, setFilteredData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateTimeInputValue, setDateTimeInputValue] = useState("");
+  const [closestAvailableDate, setClosestAvailableDate] = useState(null);
+
+  // For table sorting
+  const [sortField, setSortField] = useState(null); // 'production' or 'consumption'
+  const [sortDirection, setSortDirection] = useState("desc"); // 'desc' or 'asc'
+
+  // Filtering logic
+  useEffect(() => {
+    let filtered = historicalData;
+    
+    // First filter by search query if exists
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.Country?.toLowerCase().includes(q) ||
+          item["Zone Name"]?.toLowerCase().includes(q) ||
+          item.Region?.toLowerCase().includes(q)
+      );
+    }
+    
+    // Then filter by selected time
+    if (!isLiveMode && selectedDate) {
+      filtered = filtered.filter(item => {
+        // Allow for some time difference (e.g., within 30 minutes)
+        const timeDiff = Math.abs(item.date.getTime() - selectedDate.getTime());
+        return timeDiff <= 30 * 60 * 1000; // 30 minutes in milliseconds
+      });
+    }
+    
+    setFilteredData(filtered);
+  }, [searchQuery, historicalData, selectedDate, isLiveMode]);
+
+  // Date/time input logic
   useEffect(() => {
     if (!isLiveMode) {
-      setDateTimeInputValue(formatDateForInput(selectedDate));
+      setDateTimeInputValue(formatDateForComparison(selectedDate));
     } else {
-      setDateTimeInputValue(formatDateForInput(new Date()));
+      setDateTimeInputValue(formatDateForComparison(new Date()));
     }
   }, [selectedDate, isLiveMode]);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredData(historicalData);
-      return;
-    }
-    
-    const query = searchQuery.toLowerCase();
-    const filtered = historicalData.filter(item => 
-      (item.Country || '').toLowerCase().includes(query) ||
-      (item['Zone Name'] || '').toLowerCase().includes(query) ||
-      (item.Region || '').toLowerCase().includes(query)
-    );
-    
-    setFilteredData(filtered);
-  }, [searchQuery, historicalData]);
-
-  const findClosestDate = useCallback((targetDate) => {
-    if (!availableDates || availableDates.length === 0) return null;
-    
-    let closestDate = availableDates[0];
-    let smallestDiff = Math.abs(availableDates[0].getTime() - targetDate.getTime());
-    
-    for (let i = 1; i < availableDates.length; i++) {
-      const diff = Math.abs(availableDates[i].getTime() - targetDate.getTime());
-      if (diff < smallestDiff) {
-        smallestDiff = diff;
-        closestDate = availableDates[i];
+  const findClosestDate = useCallback(
+    (targetDate) => {
+      if (!availableDates || availableDates.length === 0) {
+        return null;
       }
-    }
-    
-    const diffInMinutes = Math.floor(smallestDiff / (1000 * 60));
-    
-    return {
-      date: closestDate,
-      diffMinutes: diffInMinutes
-    };
-  }, [availableDates]);
+      let closestDate = availableDates[0];
+      let smallestDiff = Math.abs(
+        availableDates[0].getTime() - targetDate.getTime()
+      );
+      
+      for (const date of availableDates) {
+        const diff = Math.abs(date.getTime() - targetDate.getTime());
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          closestDate = date;
+        }
+      }
+      
+      // Use the closest date to update selectedDate
+      setSelectedDate(closestDate);
+      
+      const diffInMinutes = Math.floor(smallestDiff / (1000 * 60));
+      return { date: closestDate, diffMinutes: diffInMinutes };
+    },
+    [availableDates]
+  );
 
+  // Time nav
   const goToPreviousDay = useCallback(() => {
     setIsLiveMode(false);
-    
     if (availableDates.length === 0) return;
-    
-    const currentDateStr = selectedDate.toISOString().split('T')[0];
-    const currentIndex = availableDates.findIndex(d => 
-      d.toISOString().split('T')[0] === currentDateStr
+    const currentDateStr = formatDateForComparison(selectedDate);
+    const currentIndex = availableDates.findIndex(
+      (d) => formatDateForComparison(d) === currentDateStr
     );
-    
     if (currentIndex > 0) {
       const newDate = availableDates[currentIndex - 1];
       setSelectedDate(newDate);
-      setClosestAvailableDate({
-        date: newDate,
-        diffMinutes: 0
-      });
-    }
-  }, [selectedDate, availableDates]);
-
-  const goToNextDay = useCallback(() => {
-    if (availableDates.length === 0) return;
-    
-    const currentDateStr = selectedDate.toISOString().split('T')[0];
-    const currentIndex = availableDates.findIndex(d => 
-      d.toISOString().split('T')[0] === currentDateStr
-    );
-    
-    if (currentIndex < availableDates.length - 1) {
-      const newDate = availableDates[currentIndex + 1];
-      setSelectedDate(newDate);
-      setIsLiveMode(false);
-      setClosestAvailableDate({
-        date: newDate,
-        diffMinutes: 0
-      });
-    } else if (new Date() > availableDates[availableDates.length - 1]) {
-      goToLive();
+      setClosestAvailableDate({ date: newDate, diffMinutes: 0 });
     }
   }, [selectedDate, availableDates]);
 
@@ -281,179 +319,264 @@ function App() {
     setClosestAvailableDate(null);
   }, []);
 
-  const handleDateTimeChange = useCallback((e) => {
-    const inputValue = e.target.value;
-    setDateTimeInputValue(inputValue);
-    
-    if (!inputValue) return;
-    
-    const newDate = new Date(inputValue + ':00Z');
-    
-    if (isNaN(newDate.getTime())) {
-      return;
-    }
-    
-    if (newDate < dataDateRange.start) {
-      setSelectedDate(dataDateRange.start);
-      setIsLiveMode(false);
-      return;
-    }
-    
-    if (newDate > dataDateRange.end) {
-      if (newDate <= new Date()) {
-        setIsLiveMode(false);
-        setSelectedDate(newDate);
-      } else {
-        goToLive();
-      }
-      return;
-    }
-    
-    const closest = findClosestDate(newDate);
-    
-    setIsLiveMode(false);
-    if (closest) {
-      setSelectedDate(closest.date);
-      setClosestAvailableDate({
-        date: closest.date,
-        diffMinutes: closest.diffMinutes
-      });
-    } else {
+  const goToNextDay = useCallback(() => {
+    if (availableDates.length === 0) return;
+    const currentDateStr = formatDateForComparison(selectedDate);
+    const currentIndex = availableDates.findIndex(
+      (d) => formatDateForComparison(d) === currentDateStr
+    );
+    if (currentIndex < availableDates.length - 1) {
+      const newDate = availableDates[currentIndex + 1];
       setSelectedDate(newDate);
-      setClosestAvailableDate(null);
+      setIsLiveMode(false);
+      setClosestAvailableDate({ date: newDate, diffMinutes: 0 });
+    } else if (new Date() > availableDates[availableDates.length - 1]) {
+      goToLive();
+    } else {
+      setSelectedDate(availableDates[availableDates.length - 1]);
+      setIsLiveMode(false);
     }
-  }, [dataDateRange, findClosestDate, goToLive]);
+  }, [selectedDate, availableDates, goToLive]);
 
+  // Date/time picker
+  const handleDateTimeChange = useCallback(
+    (e) => {
+      const inputValue = e.target.value;
+      setDateTimeInputValue(inputValue);
+      if (!inputValue) return;
+
+      const [datePart, timePart] = inputValue.split("T");
+      const [year, month, day] = datePart.split("-").map(Number);
+      const [hour, minute] = timePart.split(":").map(Number);
+
+      const newDate = new Date(year, month - 1, day, hour, minute);
+      if (isNaN(newDate.getTime())) return;
+
+      setSelectedDate(newDate);
+      setIsLiveMode(false);
+
+      const closest = findClosestDate(newDate);
+      if (closest) {
+        setClosestAvailableDate({
+          date: closest.date,
+          diffMinutes: closest.diffMinutes,
+        });
+      } else {
+        setClosestAvailableDate(null);
+      }
+    },
+    [findClosestDate]
+  );
+
+  // Mode toggles
   const handleProductionMode = useCallback(() => {
-    setViewMode('production');
+    setViewMode("production");
   }, []);
-
   const handleConsumptionMode = useCallback(() => {
-    setViewMode('consumption');
+    setViewMode("consumption");
   }, []);
 
-  const handleCountryView = useCallback(() => {
-    setZoneViewEnabled(false);
-  }, []);
+  // Sorting logic
+  const handleSortClick = useCallback(
+    (field) => {
+      // field: 'production' or 'consumption'
+      if (sortField === field) {
+        // Toggle direction
+        setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+      } else {
+        setSortField(field);
+        setSortDirection("desc");
+      }
+    },
+    [sortField, sortDirection]
+  );
 
-  const handleZoneView = useCallback(() => {
-    setZoneViewEnabled(true);
-  }, []);
+  // Format display date
+  const formatDisplayDate = useCallback(
+    (date) => {
+      if (isLiveMode) return "LIVE";
+      return date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+    },
+    [isLiveMode]
+  );
 
-  const formatDisplayDate = useCallback((date) => {
-    if (isLiveMode) {
-      return 'LIVE';
-    }
-    
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
-  }, [isLiveMode]);
-
-  const getCountryFlag = (countryCode) => {
-    const isoCode = zoneIdToGeojsonId[countryCode];
-    if (!isoCode) return '🏳️';
-    
-    try {
-      return getUnicodeFlagIcon(isoCode);
-    } catch (error) {
-      return '🏳️';
-    }
-  };
-
+  // Renders a table with sortable columns for Production & Consumption
   const renderRankedList = () => {
     if (isLoading) {
       return <div className="loading-indicator">Loading data...</div>;
     }
 
+    // De-duplicate by (Country, Zone Name)
     const uniqueEntries = new Map();
-    filteredData.forEach(item => {
-      const key = `${item.Country}-${item['Zone Name']}`;
+    filteredData.forEach((item) => {
+      const key = `${item.Country}-${item["Zone Name"]}`;
       if (!uniqueEntries.has(key)) {
         uniqueEntries.set(key, item);
       }
     });
 
-    const sortedData = [...uniqueEntries.values()].sort((a, b) => {
-      const aValue = viewMode === 'production' ? a.directIntensity : a.lcaIntensity;
-      const bValue = viewMode === 'production' ? b.directIntensity : b.lcaIntensity;
-      return bValue - aValue;
-    });
+    let sortedData = [...uniqueEntries.values()];
+
+    // Sort by chosen field
+    if (sortField === "production") {
+      // directIntensity
+      sortedData.sort((a, b) => b.directIntensity - a.directIntensity);
+    } else if (sortField === "consumption") {
+      // lcaIntensity
+      sortedData.sort((a, b) => b.lcaIntensity - a.lcaIntensity);
+    } else {
+      // default sort is directIntensity desc
+      sortedData.sort((a, b) => b.directIntensity - a.directIntensity);
+    }
+
+    // Reverse if ascending
+    if (sortDirection === "asc") {
+      sortedData.reverse();
+    }
 
     return (
-      <ul>
-        {sortedData.slice(0, 20).map((item, idx) => {
-          const flag = getCountryFlag(item['Zone Id']);
-          const intensity = viewMode === 'production' 
-            ? item.directIntensity 
-            : item.lcaIntensity;
-          const uniqueId = createUniqueId('location', item);
-            
-          return (
-            <li key={uniqueId}>
-              <span>{idx + 1}</span>
-              <span className="flag">{flag}</span>
-              {item.Country}
-              {item['Zone Name'] !== item.Country && (
-                <span className="location">{item['Zone Name']}</span>
-              )}
-              <span className="intensity">{intensity.toFixed(1)}</span>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="ranked-list">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Country / Zone</th>
+              <th onClick={() => handleSortClick("production")}>
+                Production
+                {sortField === "production" && ` (${sortDirection})`}
+              </th>
+              <th onClick={() => handleSortClick("consumption")}>
+                Consumption
+                {sortField === "consumption" && ` (${sortDirection})`}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedData.slice(0, 20).map((item, idx) => {
+              const uniqueId = createUniqueId("location", item);
+              // Decide how to display "Country / Zone"
+              let zoneLabel = item.Country;
+              if (item["Zone Name"] && item["Zone Name"] !== item.Country) {
+                zoneLabel += ` – ${item["Zone Name"]}`;
+              }
+
+              // Which intensity to display in the last column?
+              const productionValue = item.directIntensity?.toFixed(1) ?? "N/A";
+              const consumptionValue = item.lcaIntensity?.toFixed(1) ?? "N/A";
+
+              return (
+                <tr key={uniqueId}>
+                  <td>{idx + 1}</td>
+                  <td>{zoneLabel}</td>
+                  <td>
+                    <span className="intensity">{productionValue}</span>
+                  </td>
+                  <td>
+                    <span className="intensity">{consumptionValue}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
+  // Provide map data
   const mapDataWithDebug = () => {
     return {
       mapData: filteredData,
-      dataFound: filteredData.length> 0,
+      dataFound: filteredData.length > 0,
       currentDate: selectedDate,
       countryData: filteredData.reduce((acc, item) => {
         if (!acc[item.Country]) {
           acc[item.Country] = {};
         }
-        
         const dateKey = item.date.toISOString();
         if (!acc[item.Country][dateKey]) {
           acc[item.Country][dateKey] = item;
         }
-        
         return acc;
-      }, {})
+      }, {}),
     };
   };
 
+  // Display labels
+  let intensityLabel =
+    viewMode === "production" ? " (direct)" : " (lifecycle assessment)";
+  let granularityLabel = zoneViewEnabled ? "zone-level" : "country-level";
+
+  let mapSelectedDate = isLiveMode ? new Date() : selectedDate;
+
+  // Possibly show "LIVE MODE"
+  let liveIndicator = null;
+  if (isLiveMode) {
+    liveIndicator = <div className="live-indicator">LIVE MODE</div>;
+  }
+
+  // Possibly show error overlay
+  let errorOverlay = null;
+  if (loadError && filteredData.length === 0) {
+    errorOverlay = (
+      <div className="map-error-overlay">
+        <div className="map-error-message">
+          Unable to load map data{" "}
+          <button onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      </div>
+    );
+  }
+
+  let errorNotice = loadError ? (
+    <div className="data-error-notice">{loadError}</div>
+  ) : null;
+
+  let debugInfo = null;
+  if (closestAvailableDate && closestAvailableDate.diffMinutes > 0) {
+    debugInfo = (
+      <div className="debug-info">
+        <p className="note">
+          Note: Selected time is {closestAvailableDate.diffMinutes} minutes from
+          nearest data point
+        </p>
+      </div>
+    );
+  }
+
+  const isPrevDisabled =
+    isLiveMode || availableDates.length === 0 || selectedDate <= dataDateRange.start;
+  const isNextDisabled =
+    (isLiveMode && availableDates.length === 0) ||
+    (!isLiveMode && selectedDate >= dataDateRange.end);
+  const isLiveButtonDisabled = isLiveMode;
+
   return (
     <div className="App electricity-maps-app">
-      <Header 
+      <Header
         onProductionClick={handleProductionMode}
         onConsumptionClick={handleConsumptionMode}
-        onCountryClick={handleCountryView}
-        onZoneClick={handleZoneView}
         viewMode={viewMode}
-        zoneViewEnabled={zoneViewEnabled}
       />
       <div className="app-body">
         <aside className="left-sidebar">
           <div className="sidebar-header">
             <h1>Electricity Grid Carbon Emissions</h1>
             <p>
-              See where your electricity comes from and how much CO2 was emitted
-              to produce it
+              See where your electricity comes from and how much CO₂ was emitted to
+              produce it
             </p>
-            {loadError && (
-              <div className="data-error-notice">
-                {loadError}
-              </div>
-            )}
+            {errorNotice}
           </div>
+
           <div className="search-bar">
             <input
               type="text"
@@ -462,99 +585,73 @@ function App() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="ranked-list">
-            {renderRankedList()}
-          </div>
+
+          {/* Render the table with Production & Consumption columns */}
+          {renderRankedList()}
+
           <details className="about-section">
             <summary>About Electricity Consumption Map</summary>
             <div className="about-content">
               <p>
-                Electricity Consumption Map is a platform providing real-time
-                and predictive electricity signals allowing any device to reduce
-                their cost and emissions by informing them about the best time
-                to consume electricity.
+                Electricity Consumption Map is a platform providing real-time and
+                predictive electricity signals allowing any device to reduce their cost
+                and emissions by informing them about the best time to consume
+                electricity.
               </p>
               <p>
-                The data displayed shows carbon intensity metrics 
-                {viewMode === 'production' ? ' (direct)' : ' (lifecycle assessment)'} 
-                for various countries and zones, with 
-                {zoneViewEnabled ? ' zone-level' : ' country-level'} granularity.
+                The data displayed shows carbon intensity metrics{intensityLabel} for
+                various countries and zones, with {granularityLabel} granularity.
               </p>
               <p>
-                Low carbon percentage includes nuclear, while renewable percentage only includes
-                wind, solar, hydro, and other renewable sources.
+                Low carbon percentage includes nuclear, while renewable percentage only
+                includes wind, solar, hydro, and other renewable sources.
               </p>
-              {closestAvailableDate && closestAvailableDate.diffMinutes > 0 && (
-                <div className="debug-info">
-                  <p className="note">
-                    Note: Selected time is {closestAvailableDate.diffMinutes} minutes from nearest data point
-                  </p>
-                </div>
-              )}
+              {debugInfo}
             </div>
           </details>
+
           <div className="datetime-controls">
             <div className="date-time-picker">
-              <button 
-                onClick={goToPreviousDay} 
-                disabled={isLiveMode || availableDates.length === 0 || 
-                  (selectedDate <= dataDateRange.start)}
-              >
+              <button onClick={goToPreviousDay} disabled={isPrevDisabled}>
                 &lt;
               </button>
               <span>{formatDisplayDate(selectedDate)}</span>
-              <button 
-                onClick={goToNextDay} 
-                disabled={
-                  (isLiveMode && availableDates.length === 0) ||
-                  (!isLiveMode && selectedDate >= dataDateRange.end)
-                }
-              >
+              <button onClick={goToNextDay} disabled={isNextDisabled}>
                 &gt;
               </button>
-              <button 
+              <button
                 onClick={goToLive}
-                disabled={isLiveMode}
-                className={isLiveMode ? 'active' : ''}
+                disabled={isLiveButtonDisabled}
+                className={`${isLiveMode && "active"}`}
               >
                 →
               </button>
             </div>
             <div className="datetime-input-container">
-              <input 
+              <input
                 type="datetime-local"
                 value={dateTimeInputValue}
                 onChange={handleDateTimeChange}
-                min={formatDateForInput(dataDateRange.start)}
-                max={formatDateForInput(dataDateRange.end)}
+                min={formatDateForComparison(dataDateRange.start)}
+                max={formatDateForComparison(dataDateRange.end)}
                 className="datetime-input"
                 disabled={isLoading}
               />
-              {isLiveMode && (
-                <div className="live-indicator">LIVE MODE</div>
-              )}
+              {liveIndicator}
             </div>
           </div>
         </aside>
+
         <main className="main">
-          <MyMap 
-            selectedDate={isLiveMode ? new Date() : selectedDate}
+          <MyMap
+            selectedDate={mapSelectedDate}
             viewMode={viewMode}
             zoneViewEnabled={zoneViewEnabled}
             csvDataPath={CSV_DATA_PATH}
             isLiveMode={isLiveMode}
             {...mapDataWithDebug()}
           />
-          {loadError && filteredData.length === 0 && (
-            <div className="map-error-overlay">
-              <div className="map-error-message">
-                Unable to load map data
-                <button onClick={() => window.location.reload()}>
-                  Reload
-                </button>
-              </div>
-            </div>
-          )}
+          {errorOverlay}
         </main>
       </div>
     </div>
