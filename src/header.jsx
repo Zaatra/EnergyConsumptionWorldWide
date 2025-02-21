@@ -1,16 +1,10 @@
 import PropTypes from 'prop-types';
 
 /**
- * Header component with navigation and view controls
+ * Header component with navigation and view controls.
+ * Extra buttons (Country/Zone toggles, info-icon, and API Access) have been removed.
  */
-function Header({ 
-  onProductionClick, 
-  onConsumptionClick, 
-  onCountryClick, 
-  onZoneClick, 
-  viewMode, 
-  zoneViewEnabled 
-}) {
+function Header({ onProductionClick, onConsumptionClick, viewMode }) {
   return (
     <header className="electricity-maps-header">
       <div className="header-left">
@@ -40,41 +34,19 @@ function Header({
             Consumption
           </button>
         </div>
-        <div className="toggle-group">
-          <button 
-            className={`toggle-button ${!zoneViewEnabled ? 'active' : ''}`}
-            onClick={onCountryClick}
-          >
-            Country
-          </button>
-          <button 
-            className={`toggle-button ${zoneViewEnabled ? 'active' : ''}`}
-            onClick={onZoneClick}
-          >
-            Zone
-          </button>
-          <span className="info-icon" title="Switch between country and zone view">ⓘ</span>
-        </div>
-        <a href="#api" className="access-api-button">API Access</a>
       </div>
     </header>
   );
 }
 
-// Add prop types validation
 Header.propTypes = {
   onProductionClick: PropTypes.func.isRequired,
   onConsumptionClick: PropTypes.func.isRequired,
-  onCountryClick: PropTypes.func.isRequired,
-  onZoneClick: PropTypes.func.isRequired,
   viewMode: PropTypes.oneOf(['production', 'consumption']),
-  zoneViewEnabled: PropTypes.bool
 };
 
-// Add default props
 Header.defaultProps = {
-  viewMode: 'production',
-  zoneViewEnabled: false
+  viewMode: 'production'
 };
 
 export default Header;

@@ -2,28 +2,28 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
 
 :root {
-  --primary-color: #007bff; /* Example primary blue - adjust to your brand color */
-  --secondary-color: #6c757d; /* Example secondary grey */
-  --background-light: #f8f9fa; /* Lighter background */
-  --background-dark: #f0f2f5; /* Original light grey background */
-  --text-dark: #343a40; /* Darker text color */
-  --text-light: #6c757d; /* Lighter text color */
-  --border-color: #dee2e6; /* Light border color */
-  --box-shadow-light: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Subtle shadow */
-  --border-radius: 0.25rem; /* Standard border radius */
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --background-light: #f8f9fa;
+  --background-dark: #f0f2f5;
+  --text-dark: #343a40;
+  --text-light: #6c757d;
+  --border-color: #dee2e6;
+  --box-shadow-light: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --border-radius: 0.25rem;
 }
 
 body {
   font-family: "Inter", sans-serif;
   margin: 0 auto;
   padding: 0;
-  background-color: var(--background-dark); /* Using variable */
-  color: var(--text-dark); /* Using variable */
+  background-color: var(--background-dark);
+  color: var(--text-dark);
   display: flex;
   justify-content: center;
   align-items: flex-start;
   min-height: 100vh;
-  transition: background-color 0.3s, color 0.3s; /* Smooth transitions for potential theme changes */
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .electricity-maps-app {
@@ -32,22 +32,20 @@ body {
   flex-direction: column;
   width: 100%;
   min-width: min(100vw);
-  border-radius: var(--border-radius); /* Consistent rounded corners */
-  overflow: hidden; /* To contain rounded corners and shadows */
-  box-shadow: var(--box-shadow-light); /* Add subtle shadow for depth */
-  background-color: var(
-    --background-light
-  ); /* Lighter background for app container */
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--box-shadow-light);
+  background-color: var(--background-light);
 }
 
 /* Header Styles */
 .electricity-maps-header {
-  background-color: #fff; /* White header background */
+  background-color: #fff;
   padding: 15px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-color); /* Using variable for border */
+  border-bottom: 1px solid var(--border-color);
 }
 
 .header-left,
@@ -57,9 +55,9 @@ body {
 }
 
 .logo {
-  font-size: 1.5em; /* Slightly larger logo */
-  font-weight: 600; /* Semi-bold font weight */
-  color: var(--primary-color); /* Use primary color for logo */
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--primary-color);
   margin-right: 20px;
 }
 
@@ -76,97 +74,68 @@ body {
 
 .header-nav a {
   text-decoration: none;
-  color: var(--text-light); /* Using variable for text color */
-  font-size: 1rem; /* Slightly larger font size */
-  transition: color 0.3s; /* Smooth color transition */
+  color: var(--text-light);
+  font-size: 1rem;
+  transition: color 0.3s;
 }
 
 .header-nav a:hover {
-  color: var(--primary-color); /* Primary color on hover */
+  color: var(--primary-color);
 }
 
-.header-right .toggle-group,
-.header-right .zoom-plus,
-.header-right .access-api-button {
-  margin-left: 10px;
-}
-
+/* Toggle group styles */
 .header-right .toggle-group {
+  margin-left: 10px;
   display: flex;
-  border: 1px solid var(--border-color); /* Using variable for border */
-  border-radius: var(--border-radius); /* Using variable for border radius */
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
   overflow: hidden;
 }
 
 .header-right .toggle-button {
   background-color: #fff;
   border: none;
-  padding: 8px 15px; /* Slightly more padding */
+  padding: 8px 15px;
   font-size: 0.95rem;
-  color: var(--text-light); /* Using variable for text color */
+  color: var(--text-light);
   cursor: pointer;
-  transition: background-color 0.3s, color 0.3s; /* Smooth transitions */
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .header-right .toggle-button.active {
-  background-color: var(--primary-color); /* Primary color for active */
+  background-color: var(--primary-color);
   color: white;
-  font-weight: 500; /* Medium font weight for active */
+  font-weight: 500;
 }
 
 .header-right .toggle-button:not(.active):hover {
-  background-color: var(--background-light); /* Lighter background on hover */
-  color: var(--text-dark); /* Darker text on hover */
+  background-color: var(--background-light);
+  color: var(--text-dark);
 }
 
-.header-right .info-icon {
-  font-size: 0.9rem;
-  color: var(--secondary-color); /* Using secondary color */
-  margin-left: 5px;
-  cursor: pointer;
-}
-
-.header-right .zoom-plus,
-.header-right .access-api-button {
-  background-color: var(--primary-color); /* Primary color for buttons */
-  color: white;
-  border: none;
-  border-radius: var(--border-radius); /* Using variable for border radius */
-  padding: 10px 20px; /* More padding for buttons */
-  font-size: 1rem;
-  font-weight: 500; /* Medium font weight */
-  cursor: pointer;
-  transition: background-color 0.3s; /* Smooth transition */
-  box-shadow: var(--box-shadow-light); /* Add shadow to buttons */
-}
-
-.header-right .zoom-plus:hover,
-.header-right .access-api-button:hover {
-  background-color: #0056b3; /* Darker shade of primary color on hover */
-}
-
-/* App Body Layout (Sidebars and Map) */
+/* App Body Layout */
 .app-body {
   display: flex;
   width: 100%;
-  height: calc(100vh - 60px); /* App body takes full viewport height minus header */
-  position: relative; /* Add this */
+  height: calc(100vh - 60px);
+  position: relative;
+  overflow: hidden;
 }
 
 .left-sidebar {
-  width: 320px; /* Slightly wider sidebar */
+  width: 320px;
   background-color: #fff;
-  padding: 25px; /* Increased padding */
-  border-right: 1px solid var(--border-color); /* Using variable for border */
+  padding: 25px;
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
   height: 100%;
 }
 
 .main {
   flex-grow: 1;
-  height: 100%; /* Add this line to give .main a height */ /* Make main take up remaining height in app-body */
-  display: flex; /* Ensure main is also flex container if needed for layout */
-  position: relative; /* Add this */
+  height: 100%;
+  display: flex;
+  position: relative;
 }
 
 .map-container {
@@ -176,13 +145,12 @@ body {
   right: 0;
   bottom: 0;
 }
+
 .right-sidebar {
-  width: 90px; /* Slightly wider right sidebar */
-  background-color: var(
-    --background-light
-  ); /* Lighter background for right sidebar */
+  width: 90px;
+  background-color: var(--background-light);
   padding: 15px;
-  border-left: 1px solid var(--border-color); /* Using variable for border */
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -191,16 +159,16 @@ body {
 
 /* Left Sidebar Content Styles */
 .sidebar-header h1 {
-  font-size: 1.8em; /* Larger header text */
+  font-size: 1.8em;
   margin-bottom: 12px;
-  color: var(--text-dark); /* Using variable for text color */
-  font-weight: 600; /* Semi-bold font weight */
+  color: var(--text-dark);
+  font-weight: 600;
 }
 
 .sidebar-header p {
-  font-size: 1rem; /* Slightly larger paragraph text */
-  color: var(--text-light); /* Using variable for text color */
-  line-height: 1.6; /* Improved line height for readability */
+  font-size: 1rem;
+  color: var(--text-light);
+  line-height: 1.6;
   margin-bottom: 25px;
 }
 
@@ -209,13 +177,13 @@ body {
 }
 
 .search-bar input[type="text"] {
-  width: calc(100% - 30px); /* Adjust for padding and border */
-  padding: 12px 15px; /* More padding for input */
-  border: 1px solid var(--border-color); /* Using variable for border */
-  border-radius: var(--border-radius); /* Using variable for border radius */
+  width: calc(100% - 30px);
+  padding: 12px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
   font-size: 1rem;
-  color: var(--text-dark); /* Using variable for text color */
-  transition: border-color 0.3s, box-shadow 0.3s; /* Smooth transitions */
+  color: var(--text-dark);
+  transition: border-color 0.3s, box-shadow 0.3s;
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
   background-repeat: no-repeat;
   background-position: 15px center;
@@ -225,8 +193,8 @@ body {
 
 .search-bar input[type="text"]:focus {
   outline: none;
-  border-color: var(--primary-color); /* Primary color on focus */
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle focus shadow */
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 .search-bar input[type="text"]::placeholder {
@@ -241,19 +209,21 @@ body {
 }
 
 .ranked-list li {
-  padding: 10px 0; /* More padding for list items */
+  padding: 10px 0;
   font-size: 1rem;
-  color: var(--text-dark); /* Using variable for text color */
+  color: var(--text-dark);
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border-color); /* Add bottom border to list items */
-  transition: background-color 0.2s; /* Smooth background transition */
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s;
 }
+
 .ranked-list li:last-child {
-  border-bottom: none; /* Remove border from last item */
+  border-bottom: none;
 }
+
 .ranked-list li:hover {
-  background-color: var(--background-light); /* Lighter background on hover */
+  background-color: var(--background-light);
 }
 
 .ranked-list li span {
@@ -261,15 +231,15 @@ body {
 }
 
 .ranked-list li span.flag {
-  font-size: 1.3em; /* Slightly larger flag */
+  font-size: 1.3em;
 }
+
 .ranked-list li span.location {
-  color: var(--text-light); /* Using variable for text color */
+  color: var(--text-light);
   margin-left: auto;
   font-size: 0.9rem;
 }
 
-/* Intensity value in ranked list */
 .ranked-list .intensity {
   margin-left: auto;
   font-weight: 600;
@@ -280,51 +250,51 @@ body {
   font-size: 0.85em;
 }
 
+/* About Section */
 .about-section {
   margin-top: 25px;
-  border-top: 1px solid var(--border-color); /* Using variable for border */
+  border-top: 1px solid var(--border-color);
   padding-top: 20px;
 }
 
 .about-section summary {
-  font-weight: 600; /* Semi-bold summary text */
-  color: var(--text-dark); /* Using variable for text color */
+  font-weight: 600;
+  color: var(--text-dark);
   cursor: pointer;
   outline: none;
-  font-size: 1.1rem; /* Slightly larger summary text */
-  display: flex; /* For icon alignment */
+  font-size: 1.1rem;
+  display: flex;
   align-items: center;
 }
 
 .about-section summary::after {
-  /* Custom expand/collapse icon */
   content: "+";
   display: inline-block;
   margin-left: 8px;
   font-size: 0.9rem;
-  color: var(--secondary-color); /* Using secondary color */
+  color: var(--secondary-color);
   transition: transform 0.3s;
 }
 
 .about-section[open] summary::after {
-  transform: rotate(45deg); /* Rotate icon when expanded */
+  transform: rotate(45deg);
 }
 
 .about-content {
   padding-top: 15px;
   font-size: 1rem;
-  color: var(--text-light); /* Using variable for text color */
-  line-height: 1.6; /* Improved line height */
+  color: var(--text-light);
+  line-height: 1.6;
 }
 
-/* Make the about section more readable */
 .about-content p {
   margin-bottom: 12px;
 }
 
+/* DateTime Controls */
 .datetime-controls {
   margin-top: 25px;
-  border-top: 1px solid var(--border-color); /* Using variable for border */
+  border-top: 1px solid var(--border-color);
   padding-top: 20px;
 }
 
@@ -335,25 +305,22 @@ body {
 }
 
 .timeline-button {
-  background-color: var(
-    --background-light
-  ); /* Lighter background for buttons */
-  border: 1px solid var(--border-color); /* Using variable for border */
-  border-radius: var(--border-radius); /* Using variable for border radius */
+  background-color: var(--background-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
   padding: 8px 15px;
   font-size: 0.9rem;
-  color: var(--text-dark); /* Using variable for text color */
+  color: var(--text-dark);
   cursor: pointer;
-  transition: background-color 0.3s, color 0.3s; /* Smooth transitions */
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .timeline-button:hover {
-  background-color: #fff; /* White on hover */
-  color: var(--primary-color); /* Primary color text on hover */
-  border-color: var(--primary-color); /* Primary color border on hover */
+  background-color: #fff;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
-/* Active timeline button styling */
 .timeline-button.active {
   background-color: var(--primary-color);
   color: white;
@@ -366,55 +333,55 @@ body {
   align-items: center;
   margin-bottom: 15px;
 }
+
 .date-time-picker button {
   background: none;
   border: none;
-  font-size: 1.2rem; /* Larger button icons */
-  color: var(--secondary-color); /* Using secondary color */
+  font-size: 1.2rem;
+  color: var(--secondary-color);
   cursor: pointer;
-  transition: color 0.3s; /* Smooth transition */
-}
-.date-time-picker button:hover {
-  color: var(--primary-color); /* Primary color on hover */
-}
-.date-time-picker span {
-  font-size: 1rem;
-  color: var(--text-dark); /* Using variable for text color */
-  margin: 0 15px;
-  font-weight: 500; /* Medium font weight for date/time */
+  transition: color 0.3s;
 }
 
-/* Live button styling */
+.date-time-picker button:hover {
+  color: var(--primary-color);
+}
+
+.date-time-picker span {
+  font-size: 1rem;
+  color: var(--text-dark);
+  margin: 0 15px;
+  font-weight: 500;
+}
+
 .date-time-picker button.active {
   color: var(--primary-color);
   font-weight: bold;
 }
 
-/* Disabled buttons */
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.time-slider {
-  /* Style the slider bar and handle as needed */
-}
+/* Time Slider */
 .time-slider .slider-bar {
   height: 8px;
-  background-color: var(--border-color); /* Using variable for border color */
+  background-color: var(--border-color);
   border-radius: 4px;
   position: relative;
 }
+
 .time-slider .slider-handle {
   position: absolute;
-  top: -6px; /* Adjust to center handle on the bar */
-  left: 20%; /* Example position */
-  width: 20px; /* Slightly larger handle */
-  height: 20px; /* Slightly larger handle */
-  background-color: var(--primary-color); /* Primary color for handle */
+  top: -6px;
+  left: 20%;
+  width: 20px;
+  height: 20px;
+  background-color: var(--primary-color);
   border-radius: 50%;
   cursor: grab;
-  box-shadow: var(--box-shadow-light); /* Add shadow to handle */
+  box-shadow: var(--box-shadow-light);
   transition: left 0.3s ease;
 }
 
@@ -434,297 +401,106 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
-  color: var(--text-light); /* Using variable for text color */
+  color: var(--text-light);
   margin-top: 8px;
 }
 
-/* Right Sidebar Controls */
-.right-sidebar .zoom-controls {
-  margin-bottom: 25px;
-}
-.right-sidebar .other-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Error and Loading States */
+.data-error-notice {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: rgba(255, 200, 200, 0.2);
+  border-left: 3px solid #ff5555;
+  color: #d44;
+  font-size: 14px;
 }
 
-.right-sidebar .control-button {
-  background-color: #fff;
-  border: 1px solid var(--border-color); /* Using variable for border */
-  border-radius: 50%; /* Make buttons circular */
-  padding: 10px;
-  margin-bottom: 10px;
-  width: 60px; /* Fixed size for buttons */
-  height: 60px; /* Fixed size for buttons */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  font-size: 1rem; /* Icon size */
-  color: var(--text-dark); /* Using variable for text color */
-  transition: background-color 0.3s, border-color 0.3s, color 0.3s; /* Smooth transitions */
-  box-shadow: var(--box-shadow-light); /* Add shadow to buttons */
+.datetime-input-container {
+  margin-top: 10px;
   position: relative;
 }
 
-.right-sidebar .control-button:hover {
-  background-color: var(--primary-color); /* Primary color on hover */
-  color: white; /* White icon color on hover */
-  border-color: var(--primary-color); /* Primary color border on hover */
+.datetime-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
 }
 
-/* Better 3D mode indicator */
-.control-button.active {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-/* Control button tooltips */
-.control-tooltip {
+.live-indicator {
   position: absolute;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 5px 10px;
+  right: 10px;
+  top: 10px;
+  background: rgba(255, 0, 0, 0.2);
+  padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-right: 10px;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
   pointer-events: none;
 }
 
-.control-button:hover .control-tooltip {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Toast Styles */
-.Toastify__toast-container--top-center {
-  top: 20px;
-}
-
-.Toastify__toast {
-  border-radius: var(--border-radius); /* Using variable for border radius */
-  padding: 20px; /* More padding for toasts */
-  box-shadow: var(--box-shadow-light); /* Add shadow to toasts */
-  border: 1px solid var(--border-color); /* Add border to toasts */
-}
-
-.Toastify__toast-body {
-  font-family: "Inter", sans-serif;
-  color: var(--text-dark); /* Using variable for text color */
-}
-
-.Toastify__toast h4 {
-  margin: 0 0 12px 0;
-  color: var(--primary-color); /* Primary color for toast title */
-  font-size: 1.2em;
-  font-weight: 600; /* Semi-bold title */
-}
-
-.Toastify__toast p {
-  margin: 8px 0;
-  color: var(--text-light); /* Using variable for text color */
-  font-size: 1rem;
-  line-height: 1.6; /* Improved line height in toasts */
-}
-
-.Toastify__toast strong {
-  color: var(--text-dark); /* Using variable for text color */
-  font-weight: 600; /* Semi-bold strong text */
-}
-
-/* Loading indicator */
-.loading-indicator {
-  text-align: center;
-  padding: 20px;
-  color: var(--text-light);
+.note {
   font-style: italic;
+  color: #666;
+  font-size: 12px;
 }
 
-/* Search highlight */
-.search-highlight {
-  background-color: rgba(255, 255, 0, 0.3);
-  padding: 0 2px;
-  border-radius: 2px;
+.map-error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-/* Better map overlay styling */
-.map-legend {
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow-light);
-  padding: 12px 15px;
-  font-size: 0.9rem;
+.map-error-message {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Media Queries for Responsiveness */
-
-/* For tablets and smaller desktops (example breakpoint: 992px) */
-@media (max-width: 992px) {
-  .app-body {
-    flex-direction: column;
-    height: auto;
-  }
-
-  .left-sidebar,
-  .right-sidebar {
-    width: 100%;
-    border-right: none;
-    border-left: none;
-    border-bottom: 1px solid var(--border-color); /* Using variable for border */
-    padding: 20px; /* Adjust padding for smaller screens */
-  }
-
-  .map-container {
-    height: 500px;
-    border-radius: 0; /* Remove right-bottom radius on smaller screens */
-  }
-
-  .right-sidebar {
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
-    padding: 15px 0;
-  }
-
-  .right-sidebar .other-controls {
-    flex-direction: row;
-    justify-content: space-around;
-    width: 100%;
-    margin-top: 0;
-  }
-
-  .right-sidebar .control-button {
-    margin: 0 8px; /* Adjust horizontal margin */
-    margin-bottom: 0;
-    width: 45px; /* Slightly smaller buttons on tablet */
-    height: 45px; /* Slightly smaller buttons on tablet */
-    font-size: 0.9rem; /* Slightly smaller icon size on tablet */
-    padding: 8px; /* Adjust padding */
-  }
+.map-error-message button {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-/* For mobile devices (example breakpoint: 768px) */
-@media (max-width: 768px) {
-  .header-nav ul {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .header-nav li {
-    margin-left: 0;
-    margin-top: 10px;
-  }
-
-  .header-right {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .header-right .toggle-group,
-  .header-right .zoom-plus,
-  .header-right .access-api-button {
-    margin-left: 0;
-    margin-top: 10px;
-  }
-
-  .sidebar-header h1 {
-    font-size: 1.6em; /* Smaller header font size on mobile */
-  }
-
-  .sidebar-header p {
-    font-size: 0.9rem; /* Smaller paragraph font size on mobile */
-  }
-
-  .ranked-list li span.flag {
-    font-size: 1.1em; /* Slightly smaller flag size on mobile */
-  }
-
-  .date-time-picker span {
-    font-size: 0.9rem; /* Smaller date/time text on mobile */
-  }
-
-  .timeline-buttons {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .timeline-button {
-    margin-bottom: 8px; /* Vertical spacing for stacked buttons */
-    text-align: center;
-    flex: 1;
-    min-width: 0;
-    padding: 8px 5px;
-    font-size: 0.85rem;
-  }
-
-  .map-container {
-    height: 300px;
-  }
-
-  .right-sidebar {
-    flex-direction: column;
-  }
-
-  .right-sidebar .other-controls {
-    flex-direction: column;
-  }
-
-  .right-sidebar .control-button {
-    margin: 8px 0;
-    width: 45px; /* Fixed width for icon buttons on mobile */
-    height: 45px; /* Fixed height for icon buttons on mobile */
-    border-radius: 50%; /* Circular buttons on mobile */
-  }
+.no-data-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
 }
 
-/* Dark mode optimizations */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background-light: #2a2a2a;
-    --background-dark: #1a1a1a;
-    --text-dark: #f0f0f0;
-    --text-light: #b0b0b0;
-    --border-color: #444;
-    --box-shadow-light: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.2);
-  }
+.no-data-message {
+  background-color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 500;
+}
 
-  .electricity-maps-header {
-    background-color: #2a2a2a;
-  }
-
-  .search-bar input[type="text"] {
-    background-color: #333;
-    color: var(--text-dark);
-  }
-
-  .ranked-list {
-    background-color: #2a2a2a;
-  }
-
-  .ranked-list li:hover {
-    background-color: #3a3a3a;
-  }
-
-  .timeline-button {
-    background-color: #333;
-    color: var(--text-light);
-  }
-
-  .control-button {
-    background-color: #333;
-    color: var(--text-light);
-  }
-
-  .map-legend {
-    background-color: rgba(42, 42, 42, 0.9);
-  }
+/* Loading Indicator */
+.loading-indicator {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-light);
 }

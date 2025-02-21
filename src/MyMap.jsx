@@ -1,8 +1,54 @@
-// File 1: /my_Project/src/MyMap.jsx
-
-import React, { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import MapGL, { Layer, Source, NavigationControl } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import './MyMap.css';
+import debounce from 'lodash/debounce';
+import { zoneIdToGeojsonId } from './zoneMapping';
+
+const MAPTILER_ACCESS_TOKEN = import.meta.env.VITE_MAPTILER_ACCESS_TOKEN;
+const MAP_STYLE_URL = `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_ACCESS_TOKEN}`;
+
+const formatDateForComparison = (dateInput) => {
+  try {
+    if (!dateInput) return null;
+    
+    let date;
+    if (dateInput instanceof Date) {
+      date = dateInput;
+    } else if (typeof dateInput === 'string') {
+      if (dateInput.includes('/')) {
+        const [datePart, timePart] = dateInput.split(' ');
+        const [day, month, year] = datePart.split('/');
+        let hours = '00';
+        let minutes = '00';
+        
+        if (timePart) {
+          [hours, minutes] = timePart.split(':');
+        }
+        
+        const isoString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00Z`;
+        date = new Date(isoString);
+      } else {
+        date = new Date(dateInput);
+      }
+    } else {
+      date = new Date(dateInput);
+    }
+
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    return null;
+  }
+};
 
 const MyMap = ({
   selectedDate,
@@ -16,555 +62,350 @@ const MyMap = ({
   countryData,
   currentDate
 }) => {
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const [lng] = useState(2.5);
-  const [lat] = useState(48.5);
-  const [zoom] = useState(4);
-  const [countriesData, setCountriesData] = useState(null);
-  const [showLabels, setShowLabels] = useState(false); // Set showLabels to false by default and remove toggle
-  const [show3D, setShow3D] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
-  const [showDayNight, setShowDayNight] = useState(false);
-  const [popup, setPopup] = useState(null);
+  const [currentTime, setCurrentTime] = useState('');
+  const [hoveredCountry, setHoveredCountry] = useState(null);
+  const [geoJsonData, setGeoJsonData] = useState(null);
+  const [mapError, setMapError] = useState(null);
+  const [processedData, setProcessedData] = useState(null);
+  const [geoJsonStatus, setGeoJsonStatus] = useState({
+    fileFound: false,
+    fileReadable: false,
+    parseStatus: null,
+    featureCount: 0,
+    layerRendered: false,
+    error: null,
+    lastCheck: Date.now()
+  });
+
+  const [viewState, setViewState] = useState({
+    longitude: 0,
+    latitude: 20,
+    zoom: 1.5,
+    bearing: 0,
+    pitch: 0
+  });
 
   useEffect(() => {
-    if (map.current) return;
+    if (!mapData || !selectedDate) return;
 
-    try {
-      console.log('Map initialization started...'); // Debug log: Map initialization start
-      map.current = new maplibregl.Map({
-        container: mapContainer.current,
-        style: {
-          version: 8,
-          // glyphs: 'https://fonts.openmaptiles.org/Open%20Sans/{range}.pbf', // REMOVE or comment out the glyphs property
-          sources: {
-            'raster-tiles': {
-              type: 'raster',
-              tiles: [
-                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
-              ],
-              tileSize: 256,
-              attribution: '© OpenStreetMap contributors, © CARTO'
-            }
-          },
-          layers: [
-            {
-              id: 'base-map',
-              type: 'raster',
-              source: 'raster-tiles',
-              minzoom: 0,
-              maxzoom: 20
-            }
-          ]
-        },
-        center: [lng, lat],
-        zoom: zoom,
-        maxBounds: [[-30, 30], [50, 75]]
-      });
-      console.log('Map object created:', map.current); // Debug log: Map object created
-    } catch (mapError) {
-      console.error('Map initialization error:', mapError); // Debug log: Map initialization error
-      return; // Exit if map initialization fails
+    const targetDate = formatDateForComparison(selectedDate);
+    if (!targetDate) return;
+
+    const startDate = '2023-12-31';
+    const endDate = '2024-12-31';
+    
+    if (targetDate < startDate || targetDate > endDate) {
+      setProcessedData({});
+      return;
     }
 
-
-    map.current.on('load', () => {
-      console.log('Map loaded event fired.'); // Debug log: Map load event
-
-      // Check map container dimensions after load
-      if (mapContainer.current) {
-        const rect = mapContainer.current.getBoundingClientRect();
-        console.log('Map container dimensions on load:', { width: rect.width, height: rect.height }); // Debug log: Container dimensions
-      }
-
-      loadGeoJSON();
-
-      if (!window.mapControls) {
-        window.mapControls = {
-          fitBounds: () => {
-            if (map.current && countriesData) {
-              const bounds = new maplibregl.LngLatBounds();
-              countriesData.features.forEach(feature => {
-                if (feature.geometry && feature.geometry.coordinates) {
-                  if (feature.geometry.type === 'Polygon') {
-                    feature.geometry.coordinates.forEach(ring => {
-                      ring.forEach(coord => {
-                        bounds.extend(coord);
-                      });
-                    });
-                  } else if (feature.geometry.type === 'MultiPolygon') {
-                    feature.geometry.coordinates.forEach(polygon => {
-                      polygon.forEach(ring => {
-                        bounds.extend(coord);
-                      });
-                    });
-                  }
-                }
-              });
-              map.current.fitBounds(bounds, { padding: 20 });
-            }
-          },
-          resetOrientation: () => {
-            if (map.current) {
-              map.current.easeTo({
-                pitch: 0,
-                bearing: 0,
-                duration: 1000
-              });
-            }
-          },
-          toggle3DMode: () => {
-            if (map.current) {
-              setShow3D(!show3D);
-              if (!show3D) {
-                map.current.easeTo({
-                  pitch: 45,
-                  bearing: -17.6,
-                  duration: 1000
-                });
-              } else {
-                map.current.easeTo({
-                  pitch: 0,
-                  bearing: 0,
-                  duration: 1000
-                });
-              }
-            }
-          },
-          toggleDayNight: () => {
-            setShowDayNight(!showDayNight);
-          },
-          toggleGrid: () => {
-            setShowGrid(!showGrid);
-          },
-          toggleLabels: () => {
-            setShowLabels(!showLabels); // Keep the state function but it won't toggle labels now
+    const processed = {};
+    mapData.forEach((entry) => {
+      try {
+        const entryDate = formatDateForComparison(entry['Datetime (UTC)']);
+        if (entryDate === targetDate) {
+          const zoneId = entry['Zone Id'];
+          if (!processed[zoneId] || 
+              new Date(entry['Datetime (UTC)']) > new Date(processed[zoneId]['Datetime (UTC)'])) {
+            processed[zoneId] = entry;
           }
-        };
-      }
-
-      // Initialize popup
-      const newPopup = new maplibregl.Popup({
-        closeButton: true,
-        closeOnClick: true,
-        maxWidth: '400px'
-      });
-      setPopup(newPopup);
-    });
-
-    map.current.on('error', (error) => {
-      console.error('Map error event:', error); // Debug log: Map error event
-    });
-
-    map.current.on('sourcedata', (event) => {
-      if (event.isSourceLoaded && event.sourceId === 'raster-tiles') {
-        console.log('Raster source loaded successfully:', event); // Debug log: Raster source loaded
-      } else if (event.isSourceLoaded && event.sourceId === 'countries') {
-        console.log('Countries source loaded successfully:', event); // Debug log: Countries source loaded
-      } else if (event.isSourceLoaded) {
-        console.log('Source loaded successfully:', event); // Debug log: Generic source loaded
-      } else if (event.isError) {
-        console.error('Source data error:', event); // Debug log: Source data error
+        }
+      } catch (error) {
+        // Skip invalid entries
       }
     });
 
-    return () => {
-      if (popup) {
-        popup.remove();
-      }
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
+    setProcessedData(processed);
+  }, [mapData, selectedDate]);
+
+  const formatUTCDateTime = useCallback((date) => {
+    try {
+      const pad = (num) => String(num).padStart(2, '0');
+      const d = new Date(date);
+      if (isNaN(d.getTime())) throw new Error('Invalid date');
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateTime = () => setCurrentTime(formatUTCDateTime(new Date()));
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, [formatUTCDateTime]);
+
+  const getColorForIntensity = useCallback((intensity) => {
+    if (intensity === undefined || intensity === null || isNaN(intensity)) return '#CCCCCC';
+    const max = 1000;
+    const min = 0;
+    const norm = Math.max(min, Math.min(max, intensity));
+    const ratio = (norm - min) / (max - min);
+    let r, g;
+    const b = 0;
+    if (ratio < 0.5) {
+      r = Math.round(ratio * 2 * 255);
+      g = 255;
+    } else {
+      g = Math.round(Math.max(0, (1 - (ratio - 0.5) * 2)) * 255);
+      r = 255;
+    }
+    return `rgb(${r},${g},${b})`;
+  }, []);
+
+  useEffect(() => {
+    const loadGeoJSON = async () => {
+      if (!processedData) return;
+
+      try {
+        const response = await fetch(import.meta.env.VITE_COUNTRIES_GEONAMES_PATH);
+        if (!response.ok) throw new Error('Failed to fetch GeoJSON');
+        
+        const data = await response.json();
+        
+        const features = data.features.map((feature) => {
+          const geojsonId = feature.id;
+          const csvZoneId = Object.keys(zoneIdToGeojsonId).find(
+            key => zoneIdToGeojsonId[key] === geojsonId
+          );
+          
+          let intensity = null;
+          let record = null;
+          
+          if (csvZoneId && processedData[csvZoneId]) {
+            record = processedData[csvZoneId];
+            intensity = viewMode === 'production' 
+              ? parseFloat(record['Carbon Intensity gCO₂eq/kWh (direct)'])
+              : parseFloat(record['Carbon Intensity gCO₂eq/kWh (LCA)']);
+          }
+          
+          return {
+            ...feature,
+            id: geojsonId,
+            properties: {
+              ...feature.properties,
+              csvZoneId,
+              intensity,
+              fillColor: getColorForIntensity(intensity),
+              record: record
+            }
+          };
+        });
+
+        setGeoJsonData({
+          type: 'FeatureCollection',
+          features
+        });
+
+        setGeoJsonStatus({
+          fileFound: true,
+          fileReadable: true,
+          parseStatus: 'success',
+          featureCount: features.length,
+          layerRendered: true,
+          error: null,
+          lastCheck: Date.now()
+        });
+      } catch (error) {
+        setGeoJsonStatus(prev => ({
+          ...prev,
+          error: error.message,
+          lastCheck: Date.now()
+        }));
       }
     };
-  }, [lng, lat, zoom]);
 
-  useEffect(() => {
-    if (countriesData && map.current && map.current.isStyleLoaded() && popup) {
-      updateMapData();
-    }
-  }, [
-    countriesData,
-    selectedDate,
-    viewMode,
-    zoneViewEnabled,
-    mapData,
-    dataFound,
-    // showLabels,  // Remove showLabels from dependencies
-    show3D,
-    showGrid,
-    showDayNight
-  ]);
+    loadGeoJSON();
+  }, [processedData, viewMode, getColorForIntensity]);
 
-  const loadGeoJSON = async () => {
-    try {
-      const response = await fetch('/countries.geo.json');
-      const data = await response.json();
-      setCountriesData(data);
-      console.log('GeoJSON data loaded successfully:', data); // Debug log: GeoJSON load success
-    } catch (error) {
-      console.error('Failed to load GeoJSON:', error); // Debug log: GeoJSON load error
-    }
-  };
+  const handleCountryClick = useCallback((event) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
 
-  const getColorForIntensity = (intensity) => {
-    // If no intensity data is available, use a neutral color
-    if (intensity === undefined || intensity === null || isNaN(intensity)) {
-      return '#CCCCCC';
-    }
+    const countryName = feature.properties.name;
+    const record = feature.properties.record;
+    const intensity = feature.properties.intensity;
 
-    // Color scale from green (low) to red (high)
-    if (intensity <= 50) return '#00CC00';
-    if (intensity <= 100) return '#66CC00';
-    if (intensity <= 150) return '#CCCC00';
-    if (intensity <= 200) return '#CC6600';
-    if (intensity <= 300) return '#CC3300';
-    if (intensity <= 400) return '#CC0000';
-    return '#990000';
-  };
-
-  const getFillOpacity = () => {
-    return 0.7;
-  };
-
-  const getCountryIntensity = (countryName, selectedDate) => {
-    if (!dataFound || !mapData || mapData.length === 0) {
-      return null;
-    }
-
-    // Get data for the selected country on the selected date
-    const countryEntries = mapData.filter(
-      entry => entry.Country === countryName &&
-      entry.date.toDateString() === selectedDate.toDateString()
+    toast.info(
+      <div className="popup-content">
+        <h3>{countryName}</h3>
+        <div className="popup-data">
+          <p>
+            <strong>Carbon Intensity ({viewMode}):</strong> {intensity ? `${intensity.toFixed(2)} gCO₂eq/kWh` : 'No data available'}
+          </p>
+          {record && (
+            <>
+              <p><strong>Low Carbon:</strong> {record['Low Carbon Percentage']}%</p>
+              <p><strong>Renewable:</strong> {record['Renewable Percentage']}%</p>
+            </>
+          )}
+          <p><strong>Mode:</strong> {isLiveMode ? 'Live' : 'Historical'}</p>
+          <p><strong>Date:</strong> {selectedDate.toLocaleDateString()}</p>
+        </div>
+        <div className="popup-footer">
+          <p>UTC Time: {currentTime}</p>
+        </div>
+      </div>,
+      {
+        position: 'top-center',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      }
     );
+  }, [viewMode, isLiveMode, currentTime, selectedDate]);
 
-    if (countryEntries.length === 0) {
-      return null;
+  const onHover = useCallback(event => {
+    const map = event.target;
+    const features = event.features;
+    
+    if (features && features.length > 0) {
+      map.getCanvas().style.cursor = 'pointer';
+      
+      if (hoveredCountry !== null) {
+        try {
+          map.setFeatureState(
+            { source: 'countries', id: hoveredCountry },
+            { hover: false }
+          );
+        } catch (err) {}
+      }
+      
+      const feature = features[0];
+      const id = feature.id;
+      
+      if (id !== undefined && id !== null) {
+        try {
+          map.setFeatureState(
+            { source: 'countries', id },
+            { hover: true }
+          );
+          setHoveredCountry(id);
+        } catch (err) {}
+      }
     }
+  }, [hoveredCountry]);
 
-    // Get the entry closest to the selected time
-    const targetHour = selectedDate.getHours();
-    let closestEntry = countryEntries[0];
-    let smallestHourDiff = Math.abs(closestEntry.date.getHours() - targetHour);
-
-    countryEntries.forEach(entry => {
-      const hourDiff = Math.abs(entry.date.getHours() - targetHour);
-      if (hourDiff < smallestHourDiff) {
-        smallestHourDiff = hourDiff;
-        closestEntry = entry;
-      }
-    });
-
-    return viewMode === 'production' ? closestEntry.directIntensity : closestEntry.lcaIntensity;
-  };
-
-  const updateMapData = () => {
-    if (!map.current || !map.current.isStyleLoaded() || !countriesData) return;
-
-    // Check if source already exists, if not add it
-    if (!map.current.getSource('countries')) {
-      console.log('Adding countries source.'); // Debug log: Adding countries source
-      map.current.addSource('countries', {
-        type: 'geojson',
-        data: countriesData
-      });
-    } else {
-      console.log('Setting data for countries source.'); // Debug log: Setting countries source data
-      // Update the source data
-      map.current.getSource('countries').setData(countriesData);
+  const onMouseLeave = useCallback(event => {
+    const map = event.target;
+    map.getCanvas().style.cursor = '';
+    
+    if (hoveredCountry !== null) {
+      try {
+        map.setFeatureState(
+          { source: 'countries', id: hoveredCountry },
+          { hover: false }
+        );
+        setHoveredCountry(null);
+      } catch (err) {}
     }
+  }, [hoveredCountry]);
 
-    // Remove existing layers if they exist
-    if (map.current.getLayer('country-fills')) {
-      console.log('Removing country-fills layer.'); // Debug log: Removing country-fills layer
-      map.current.removeLayer('country-fills');
+  const handleMove = useCallback(evt => {
+    setViewState(evt.viewState);
+  }, []);
+
+  const layerStyle = useMemo(() => ({
+    id: 'countries',
+    type: 'fill',
+    paint: {
+      'fill-color': ['get', 'fillColor'],
+      'fill-opacity': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        0.9,
+        0.7
+      ]
     }
-    if (map.current.getLayer('country-borders')) {
-      console.log('Removing country-borders layer.'); // Debug log: Removing country-borders layer
-      map.current.removeLayer('country-borders');
-    }
-    if (map.current.getLayer('country-labels')) {
-      console.log('Removing country-labels layer.'); // Debug log: Removing country-labels layer
-      map.current.removeLayer('country-labels'); // REMOVE country-labels layer
-    }
-    if (map.current.getLayer('grid-lines')) {
-      console.log('Removing grid-lines layer.'); // Debug log: Removing grid-lines layer
-      map.current.removeLayer('grid-lines');
-    }
-    if (map.current.getLayer('day-night-layer')) {
-      console.log('Removing day-night-layer layer.'); // Debug log: Removing day-night-layer layer
-      map.current.removeLayer('day-night-layer');
-    }
-
-    // Prepare color stops for the 'match' expression
-    const colorExpression = ['match', ['get', 'name']];
-    countriesData.features.forEach(feature => {
-      const countryName = feature.properties.name;
-      const intensity = getCountryIntensity(countryName, selectedDate);
-      const color = getColorForIntensity(intensity);
-      colorExpression.push(countryName, color);
-    });
-    // Default color if no match
-    colorExpression.push('#CCCCCC');
-
-    // Add country fill layer
-    console.log('Adding country-fills layer.'); // Debug log: Adding country-fills layer
-    map.current.addLayer({
-      id: 'country-fills',
-      type: 'fill',
-      source: 'countries',
-      layout: {},
-      paint: {
-        'fill-color': colorExpression, // Use the 'match' expression here
-        'fill-opacity': getFillOpacity(),
-        // 'fill-extrusion-height': show3D ?  // Removed fill-extrusion-height
-        //   [
-        //     'case',
-        //     ['has', 'name'],
-        //     [
-        //       'function',
-        //       ['get', 'name'],
-        //       ['literal', countriesData.features.reduce((acc, feature) => {
-        //         const countryName = feature.properties.name;
-        //         const intensity = getCountryIntensity(countryName, selectedDate) || 0;
-        //         const height = intensity * 100;
-        //         return { ...acc, [countryName]: height };
-        //       }, {})]
-        //     ],
-        //     0
-        //   ] : 0
-      }
-    });
-
-    // Add country border layer
-    console.log('Adding country-borders layer.'); // Debug log: Adding country-borders layer
-    map.current.addLayer({
-      id: 'country-borders',
-      type: 'line',
-      source: 'countries',
-      layout: {},
-      paint: {
-        'line-color': '#000',
-        'line-width': 1
-      }
-    });
-
-    // // Add country labels layer if showLabels is true  // REMOVE or comment out the labels layer addition
-    // if (showLabels) {
-    //   map.current.addLayer({
-    //     id: 'country-labels',
-    //     type: 'symbol',
-    //     source: 'countries',
-    //     layout: {
-    //       'text-field': ['get', 'name'],
-    //       'text-variable-anchor': ['center'],
-    //       'text-justify': 'center',
-    //       'text-size': 12
-    //     },
-    //     paint: {
-    //       'text-color': '#333',
-    //       'text-halo-color': '#fff',
-    //       'text-halo-width': 1
-    //     }
-    //   });
-    // }
-
-    // Add grid lines layer if showGrid is true
-    if (showGrid) {
-      const gridSource = {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      };
-
-      // Generate grid lines
-      for (let lat = 30; lat <= 75; lat += 5) {
-        const lineFeature = {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: [[-30, lat], [50, lat]]
-          },
-          properties: {}
-        };
-        gridSource.data.features.push(lineFeature);
-      }
-
-      for (let lng = -30; lng <= 50; lng += 5) {
-        const lineFeature = {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: [[lng, 30], [lng, 75]]
-          },
-          properties: {}
-        };
-        gridSource.data.features.push(lineFeature);
-      }
-
-      if (!map.current.getSource('grid')) {
-        console.log('Adding grid source.'); // Debug log: Adding grid source
-        map.current.addSource('grid', gridSource);
-      } else {
-        console.log('Setting data for grid source.'); // Debug log: Setting grid source data
-        map.current.getSource('grid').setData(gridSource.data);
-      }
-
-      console.log('Adding grid-lines layer.'); // Debug log: Adding grid-lines layer
-      map.current.addLayer({
-        id: 'grid-lines',
-        type: 'line',
-        source: 'grid',
-        layout: {},
-        paint: {
-          'line-color': '#ccc',
-          'line-width': 0.5,
-          'line-dasharray': [2, 2]
-        }
-      });
-    }
-
-    // Add day-night layer if showDayNight is true
-    if (showDayNight) {
-      // Create a simple day-night visualization
-      const hour = selectedDate.getUTCHours();
-      const dayNightSource = {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [
-              [
-                [-180, 90],
-                [0, 90],
-                [0, -90],
-                [-180, -90],
-                [-180, 90]
-              ]
-            ]
-          },
-          properties: {}
-        }
-      };
-
-      if (!map.current.getSource('day-night')) {
-        console.log('Adding day-night source.'); // Debug log: Adding day-night source
-        map.current.addSource('day-night', dayNightSource);
-      } else {
-        console.log('Setting data for day-night source.'); // Debug log: Setting day-night source data
-        map.current.getSource('day-night').setData(dayNightSource.data);
-      }
-
-      console.log('Adding day-night-layer layer.'); // Debug log: Adding day-night-layer layer
-      map.current.addLayer({
-        id: 'day-night-layer',
-        type: 'fill',
-        source: 'day-night',
-        layout: {},
-        paint: {
-          'fill-color': '#000',
-          'fill-opacity': 0.2
-        }
-      });
-    }
-
-    // Add click handler for countries (no changes needed here)
-    map.current.on('click', 'country-fills', (e) => {
-      if (!e.features.length) return;
-
-      const feature = e.features[0];
-      const countryName = feature.properties.name;
-
-      // Find intensity data for the clicked country
-      const intensity = getCountryIntensity(countryName, selectedDate);
-
-      if (intensity === null) {
-        popup.setLngLat(e.lngLat)
-          .setHTML(`
-              <div>
-                <h3>${countryName} ()</h3>
-                <p>Carbon Intensity (Direct): No data available</p>
-              </div>
-            `)
-          .addTo(map.current);
-        return;
-      }
-
-      // Find the full data entry for more details
-      const countryEntries = mapData.filter(
-        entry => entry.Country === countryName &&
-          entry.date.toDateString() === selectedDate.toDateString()
-      );
-
-      let closestEntry = null;
-      if (countryEntries.length > 0) {
-        const targetHour = selectedDate.getHours();
-        closestEntry = countryEntries[0];
-        let smallestHourDiff = Math.abs(closestEntry.date.getHours() - targetHour);
-
-        countryEntries.forEach(entry => {
-          const hourDiff = Math.abs(entry.date.getHours() - targetHour);
-          if (hourDiff < smallestHourDiff) {
-            smallestHourDiff = hourDiff;
-            closestEntry = entry;
-          }
-        });
-      }
-
-      if (closestEntry) {
-        const formattedDate = closestEntry.date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZoneName: 'short'
-        });
-
-        const zoneInfo = closestEntry['Zone Name'] !== countryName
-          ? `(${closestEntry['Zone Name']})`
-          : '';
-
-        popup.setLngLat(e.lngLat)
-          .setHTML(`
-              <div>
-                <h3>${countryName} ${zoneInfo}</h3>
-                <p>Data as of: ${formattedDate}</p>
-                <p>Carbon Intensity (Direct): ${closestEntry.directIntensity.toFixed(2)} gCO<sub>2</sub>eq/kWh</p>
-                <p>Carbon Intensity (LCA): ${closestEntry.lcaIntensity.toFixed(2)} gCO<sub>2</sub>eq/kWh</p>
-                <p>Low Carbon: ${closestEntry.lowCarbonPercentage.toFixed(2)}%</p>
-                <p>Renewable: ${closestEntry.renewablePercentage.toFixed(2)}%</p>
-                <p>Viewed by: ${localStorage.getItem('username') || 'Guest'}</p>
-              </div>
-            `)
-          .addTo(map.current);
-      }
-    });
-
-    // Change cursor on hover (no changes needed here)
-    map.current.on('mouseenter', 'country-fills', () => {
-      map.current.getCanvas().style.cursor = 'pointer';
-    });
-
-    map.current.on('mouseleave', 'country-fills', () => {
-      map.current.getCanvas().style.cursor = '';
-    });
-  };
+  }), []);
 
   return (
     <div className="map-wrapper">
-      <div ref={mapContainer} className="map" />
-      {!dataFound && (
+      <MapGL
+        {...viewState}
+        onMove={handleMove}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle={MAP_STYLE_URL}
+        interactiveLayerIds={['countries']}
+        onClick={handleCountryClick}
+        onMouseMove={onHover}
+        onMouseLeave={onMouseLeave}
+        cursor={hoveredCountry ? 'pointer' : 'grab'}
+      >
+        {geoJsonData && (
+          <Source 
+            id="countries" 
+            type="geojson" 
+            data={geoJsonData}
+            generateId={false}
+          >
+            <Layer {...layerStyle} />
+          </Source>
+        )}
+        <NavigationControl position="top-right" />
+      </MapGL>
+
+      <ToastContainer />
+
+      {mapError && (
+        <div className="map-error-overlay">
+          <div className="map-error-message">
+            {mapError}
+            <button onClick={() => window.location.reload()}>
+              Reload
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="map-info">
+        <div className="time-status-indicator">
+          <div className="status-badge">
+            {isLiveMode ? (
+              <>
+                <span className="mode-label live">LIVE</span>
+                <span className="time-label">{currentTime} UTC</span>
+              </>) : (
+              <>
+                <span className="mode-label historical">HISTORICAL</span>
+                <span className="time-label">
+                  {selectedDate?.toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric',
+                    day: 'numeric'
+                  }) || 'Loading...'}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="map-legend">
+          <div className="legend-title">Carbon Intensity Scale (gCO₂eq/kWh)</div>
+          <div className="gradient-bar"></div>
+          <div className="gradient-labels">
+            <span>0</span>
+            <span>1000</span>
+          </div>
+        </div>
+      </div>
+
+      {!processedData && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">
+            <div className="loading-message">Loading data...</div>
+          </div>
+        </div>
+      )}
+
+      {processedData && Object.keys(processedData).length === 0 && (
         <div className="no-data-overlay">
           <div className="no-data-message">
-            No data available for the selected date and time
+            <h3>No Data Available</h3>
+            <p>No data is available for the selected date: {formatDateForComparison(selectedDate)}</p>
+            <p>Please select a date between {formatDateForComparison(new Date('2023-12-31'))} and {formatDateForComparison(new Date('2024-12-31'))}</p>
           </div>
         </div>
       )}
